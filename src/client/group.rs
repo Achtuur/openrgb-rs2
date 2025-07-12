@@ -93,6 +93,17 @@ impl ControllerGroup {
         idx.index(self)
     }
 
+    /// Returns the first controller in this group.
+    ///
+    /// This is useful when you know there is only one controller in the group,
+    /// such as after calling `[split_per_type()]`.
+    pub fn into_first(self) -> OpenRgbResult<Controller> {
+        self.controllers
+            .into_iter()
+            .next()
+            .ok_or(OpenRgbError::CommandError("No controllers in group".to_string()))
+    }
+
     /// Creates a new `UpdateLedCommandGroup` for this controller group.
     ///
     /// See `Controller::cmd()` for more information.
