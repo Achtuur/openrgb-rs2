@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    client::{command::CommandGroup, group}, data::DeviceType, Controller, OpenRgbError, OpenRgbResult
+    Controller, OpenRgbError, OpenRgbResult, client::command::CommandGroup, data::DeviceType,
 };
 
 /// Trait for things that can index into a `ControllerGroup`.
@@ -107,7 +107,9 @@ impl ControllerGroup {
 
     /// Returns an iterator over controllers of the given device type.
     pub fn get_by_type(&self, device_type: DeviceType) -> impl Iterator<Item = &Controller> {
-        self.controllers.iter().filter(move |c| c.device_type() == device_type)
+        self.controllers
+            .iter()
+            .filter(move |c| c.device_type() == device_type)
     }
 
     /// Returns the first controller in this group.
@@ -118,10 +120,12 @@ impl ControllerGroup {
         self.controllers
             .into_iter()
             .next()
-            .ok_or(OpenRgbError::CommandError("No controllers in group".to_string()))
+            .ok_or(OpenRgbError::CommandError(
+                "No controllers in group".to_string(),
+            ))
     }
 
-    /// Creates a new `UpdateLedCommandGroup` for this controller group.
+    /// Creates a new `CommandGroup` for this controller group.
     ///
     /// See `Controller::cmd()` for more information.
     pub fn cmd(&self) -> CommandGroup {

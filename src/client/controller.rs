@@ -1,7 +1,11 @@
 use crate::{
-    client::command::Command, data::{ModeData, ModeFlag}, protocol::{
-        data::{Color, ControllerData}, OpenRgbProtocol
-    }, DeviceType, Led, OpenRgbError, OpenRgbResult, ZoneData
+    DeviceType, Led, OpenRgbError, OpenRgbResult, ZoneData,
+    client::command::Command,
+    data::{ModeData, ModeFlag},
+    protocol::{
+        OpenRgbProtocol,
+        data::{Color, ControllerData},
+    },
 };
 
 use super::Zone;
@@ -29,11 +33,7 @@ impl std::fmt::Debug for Controller {
 
 impl Controller {
     pub(crate) fn new(id: usize, proto: OpenRgbProtocol, data: ControllerData) -> Self {
-        Self {
-            id,
-            proto,
-            data,
-        }
+        Self { id, proto, data }
     }
 
     pub(crate) fn proto(&self) -> &OpenRgbProtocol {
@@ -63,16 +63,17 @@ impl Controller {
             pub fn location(&self) -> &str;
             /// Returns the currently set colors of this controller.
             ///
-            /// These have to be manually refreshsed using [`sync_controller_data()`].
+            /// These have to be manually refreshed using [`Self::sync_controller_data()`].
             pub fn colors(&self) -> &[Color];
             /// Returns the number of LEDs in this controller.
             pub fn num_leds(&self) -> usize;
 
             /// Returns the modes supported by this controller.
             ///
-            /// [`set_controllable_mode()`] will set the controller to the mode named "direct"
+            /// [`Self::set_controllable_mode()`] will set the controller to the mode named "direct"
             pub fn modes(&self) -> &[ModeData];
             /// Returns the LEDs in this controller
+            #[allow(unused)]
             pub(crate) fn leds(&self) -> &[Led];
             pub(crate) fn zones(&self) -> &[ZoneData];
             pub(crate) fn active_mode(&self) -> Option<&ModeData>;
@@ -127,7 +128,9 @@ impl Controller {
 
     /// Returns the zone with the given `zone_id`.
     pub fn get_zone<'a>(&'a self, zone_id: usize) -> OpenRgbResult<Zone<'a>> {
-        let zone_data = self.zones().get(zone_id)
+        let zone_data = self
+            .zones()
+            .get(zone_id)
             .ok_or(OpenRgbError::CommandError(format!(
                 "Zone {zone_id} not found for {}",
                 self.name()
@@ -138,14 +141,12 @@ impl Controller {
 
     /// Returns an iterator over all available zones in this controller.
     pub fn get_all_zones<'a>(&'a self) -> impl Iterator<Item = Zone<'a>> {
-        self.zones()
-            .iter()
-            .map(|z| Zone::new(self, z))
+        self.zones().iter().map(|z| Zone::new(self, z))
     }
 
     /// Sets a single LED to the given `color`.
     ///
-    /// When doing many writes in rapid succession, it is recommended to use the [`cmd()`] method instead.
+    /// When doing many writes in rapid succession, it is recommended to use the [`Self::cmd()`] method instead.
     pub async fn set_led(&self, led: usize, color: Color) -> OpenRgbResult<()> {
         self.proto
             .update_led(self.id as u32, led as i32, &color)
@@ -185,7 +186,7 @@ impl Controller {
         self.set_all_leds(Color { r: 0, g: 0, b: 0 }).await
     }
 
-    /// Creates an `UpdateLedCommand` for this controller.
+    /// Creates a [`Command`] for this controller.
     ///
     /// Controller LEDs can be updated in three ways:
     ///  * per led: `self.set_led()`
@@ -193,7 +194,7 @@ impl Controller {
     ///  * all at once: `self.set_leds()`
     ///
     /// From my testing, the most efficient way is to always update all LEDs at once.
-    /// The `UpdateLedCommand` API lets you build a command using updates to individual LEDs, zones or segments
+    /// The `Command` API lets you build a command using updates to individual LEDs, zones or segments
     /// and then executes them as a single `set_led()` call.
     ///
     /// # Example
@@ -207,11 +208,11 @@ impl Controller {
     /// controller.set_leds([Color::new(255, 0, 0); 5]).await?;
     /// // equivalent with command
     /// let mut cmd = controller.cmd();
-    /// cmd.add_set_led(0, Color::new(255, 0, 0))?;
-    /// cmd.add_set_led(2, Color::new(255, 0, 0))?; // order doesn't matter
-    /// cmd.add_set_led(4, Color::new(255, 0, 0))?;
-    /// cmd.add_set_led(1, Color::new(255, 0, 0))?;
-    /// cmd.add_set_led(5, Color::new(255, 0, 0))?;
+    /// cmd.set_led(0, Color::new(255, 0, 0))?;
+    /// cmd.set_led(2, Color::new(255, 0, 0))?; // order doesn't matter
+    /// cmd.set_led(4, Color::new(255, 0, 0))?;
+    /// cmd.set_led(1, Color::new(255, 0, 0))?;
+    /// cmd.set_led(5, Color::new(255, 0, 0))?;
     /// // this is just a single update
     /// cmd.execute().await
     /// # }
@@ -230,7 +231,8 @@ impl Controller {
             )));
         }
 
-        let offset = self.zones()
+        let offset = self
+            .zones()
             .iter()
             .filter(|z| z.id < zone_id)
             .map(|z| z.leds_count as usize)

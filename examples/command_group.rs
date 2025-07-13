@@ -11,7 +11,6 @@ async fn main() -> OpenRgbResult<()> {
     }
     cmd.execute().await?;
 
-
     let first = group.get_controller(0)?;
     first.set_all_leds(Color::new(255, 255, 255)).await?;
 

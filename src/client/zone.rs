@@ -1,7 +1,9 @@
 use array2d::Array2D;
 
 use crate::{
-    client::{segment::Segment}, data::{SegmentData, ZoneData}, Color, Controller, OpenRgbError, OpenRgbResult, Command, ZoneType
+    Color, Command, Controller, OpenRgbError, OpenRgbResult, ZoneType,
+    client::segment::Segment,
+    data::{SegmentData, ZoneData},
 };
 
 /// A zone in a controller, which contains one or more LEDs.
@@ -30,7 +32,6 @@ impl<'a> Zone<'a> {
         self.zone_data.id()
     }
 
-
     delegate::delegate! {
         to self.zone_data {
             /// Returns the ID of this zone.
@@ -53,6 +54,7 @@ impl<'a> Zone<'a> {
             pub fn num_leds(&self) -> usize;
 
             pub(crate) fn segments(&self) -> Option<&[SegmentData]>;
+            #[allow(unused)]
             pub(crate) fn matrix(&self) -> Option<&Array2D<u32>>;
         }
     }
@@ -61,10 +63,11 @@ impl<'a> Zone<'a> {
     pub fn get_segment(&'a self, segment_id: usize) -> OpenRgbResult<Segment<'a>> {
         let Some(segments) = self.segments() else {
             return Err(OpenRgbError::CommandError(
-                "Segments not supported in protocol version < 4".to_string()
+                "Segments not supported in protocol version < 4".to_string(),
             ));
         };
-        let data = segments.get(segment_id)
+        let data = segments
+            .get(segment_id)
             .ok_or(OpenRgbError::CommandError(format!(
                 "Segment with id {segment_id} not found in zone {}",
                 self.name()
@@ -77,7 +80,7 @@ impl<'a> Zone<'a> {
         self.segments()
             .into_iter()
             .flatten()
-            .map(move |s| Segment::new(self, s,))
+            .map(move |s| Segment::new(self, s))
     }
 
     /// Returns the offset of this zone in the controller's LED array.
@@ -87,7 +90,7 @@ impl<'a> Zone<'a> {
             .expect("Zone id should be valid")
     }
 
-    /// Creates a new [`UpdateLedCommand`] for the controller of this zone.
+    /// Creates a new [`Command`] for the controller of this zone.
     ///
     /// The command must be executed by calling `.execute()`
     #[must_use]
@@ -99,7 +102,10 @@ impl<'a> Zone<'a> {
     /// Equivalent to `cmd().set_zone_leds(self.zone_id(), colors)`.
     ///
     /// The command must be executed by calling `.execute()`
-    pub fn cmd_with_set_leds(&'a self, colors: impl IntoIterator<Item = Color>) -> OpenRgbResult<Command<'a>> {
+    pub fn cmd_with_set_leds(
+        &'a self,
+        colors: impl IntoIterator<Item = Color>,
+    ) -> OpenRgbResult<Command<'a>> {
         let mut cmd = self.cmd();
         cmd.set_zone_leds(self.zone_id(), colors)?;
         Ok(cmd)

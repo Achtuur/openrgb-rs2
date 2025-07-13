@@ -7,7 +7,7 @@ use crate::{OpenRgbResult, impl_enum_discriminant};
 
 use super::SegmentData;
 
-/// RGB controller [ZoneData] type.
+/// Type of zones available.
 ///
 /// See [Open SDK documentation](https://gitlab.com/CalcProgrammer1/OpenRGB/-/wikis/OpenRGB-SDK-Documentation#zone-data) for more information.
 #[derive(Eq, PartialEq, Debug, Copy, Clone)]
@@ -122,7 +122,7 @@ impl ZoneData {
 
     /// LED matrix of this zone.
     ///
-    /// If [`zone_type()`] is [`ZoneType::Matrix`], this will return `Some`.
+    /// If [`Self::zone_type()`] is [`ZoneType::Matrix`], this will return `Some`.
     pub fn matrix(&self) -> Option<&Array2D<u32>> {
         self.matrix.as_ref()
     }

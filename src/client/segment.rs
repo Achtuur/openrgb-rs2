@@ -1,4 +1,4 @@
-use crate::{data::SegmentData, Color, OpenRgbResult, Command, Zone};
+use crate::{Color, Command, OpenRgbResult, Zone, data::SegmentData};
 
 /// A segment in a zone, which can contain multiple LEDs.
 pub struct Segment<'a> {
@@ -45,7 +45,7 @@ impl<'a> Segment<'a> {
         self.segment_data.offset() as usize
     }
 
-    /// Creates a new [`UpdateLedCommand`] for the controller of this segment's zone.
+    /// Creates a new [`Command`] for the controller of this segment's zone.
     #[must_use]
     pub fn cmd(&'a self) -> Command<'a> {
         self.zone.cmd()
@@ -54,7 +54,10 @@ impl<'a> Segment<'a> {
     /// Returns a command to update the LEDs for this Zone to `colors`.
     ///
     /// The command must be executed by calling `.execute()`
-    pub fn cmd_with_set_leds(&'a self, colors: impl IntoIterator<Item = Color>) -> OpenRgbResult<Command<'a>> {
+    pub fn cmd_with_set_leds(
+        &'a self,
+        colors: impl IntoIterator<Item = Color>,
+    ) -> OpenRgbResult<Command<'a>> {
         let mut cmd = self.cmd();
         cmd.set_segment_leds(self.zone_id(), self.segment_id(), colors)?;
         Ok(cmd)

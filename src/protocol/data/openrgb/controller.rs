@@ -89,6 +89,15 @@ impl ControllerData {
         &self.name
     }
 
+    #[allow(unused)]
+    pub fn id(&self) -> u32 {
+        self.id
+    }
+
+    pub(crate) fn set_id(&mut self, id: u32) {
+        self.id = id;
+    }
+
     pub fn device_type(&self) -> DeviceType {
         self.device_type
     }
@@ -137,7 +146,7 @@ impl ControllerData {
 
     /// The number of LEDs in all zones of this controller summed together.
     ///
-    /// This is not necessarily the same as [`leds()`]'s length.
+    /// This is not necessarily the same as [`Self::leds()`]'s length.
     pub fn num_leds(&self) -> usize {
         self.num_leds
     }
@@ -148,21 +157,15 @@ impl ControllerData {
     }
 
     /// Returns the alternate names for LEDs, only supported in protocol version 5 and above.
+    #[allow(unused)]
     pub fn led_alt_names(&self) -> Option<&[String]> {
         self.led_alt_names.value().map(|v| v.as_slice())
     }
 
     /// Returns the flags for this controller. Only supported in protocol version 5 and above.
+    #[allow(unused)]
     pub fn flags(&self) -> Option<FlagSet<ControllerFlags>> {
         self.flags.value().copied()
-    }
-
-    pub fn id(&self) -> u32 {
-        self.id
-    }
-
-    pub(crate) fn set_id(&mut self, id: u32) {
-        self.id = id;
     }
 }
 
