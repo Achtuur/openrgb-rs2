@@ -2,11 +2,9 @@ openrgb-rs2 [![crates.io](https://img.shields.io/crates/v/openrgb.svg)](https://
 [![tests](https://github.com/Achtuur/openrgb-rs2/actions/workflows/tests.yml/badge.svg)](https://github.com/Achtuur/openrgb-rs2/actions/workflows/tests.yml)
 ==========
 
-**Rust client library for [OpenRGB SDK](https://openrgb.org).**
+**Rust client library for the [OpenRGB SDK](https://gitlab.com/CalcProgrammer1/OpenRGB/-/blob/master/Documentation/OpenRGBSDK.md).**
 
-See [documentation](https://docs.rs/openrgb2) and [examples](https://github.com/Achtuur/openrgb-rs2/tree/master/examples).
-
-# Example
+[OpenRGB](https://openrgb.org/) is an RGB Lighting control app that doesn't depend on manufacturer software.
 
 ```rust
 use openrgb2::{OpenRgbClient, OpenRgbResult};
@@ -27,8 +25,9 @@ async fn main() -> OpenRgbResult<()> {
 }
 ```
 
+See [documentation](https://docs.rs/openrgb2) and [examples](https://github.com/Achtuur/openrgb-rs2/tree/master/examples).
 
-# Original openrgb-rs
+# Original `openrgb-rs`
 
 This repository is a clone of the repo previously maintaed by [nicoulaj](https://github.com/nicoulaj/openrgb-rs). I have attempted to reach out to them, but received no response. As a result I decided to republish the OpenRGB SDK under a new name (`openrgb-rs2`).
 
