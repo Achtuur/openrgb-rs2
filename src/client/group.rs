@@ -85,7 +85,6 @@ impl ControllerGroup {
     pub fn len(&self) -> usize {
         self.controllers.len()
     }
-
     /// Returns an iterator over the controllers in this group.
     pub fn iter(&self) -> impl Iterator<Item = &Controller> {
         self.controllers.iter()
