@@ -5,12 +5,12 @@ use crate::protocol::{DeserFromBuf, ReceivedMessage};
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Led {
     /// LED name.
-    pub name: String,
+    name: String,
 
     /// LED value.
     ///
     /// This is some internal flag, basically of no use to us
-    pub value: u32,
+    value: u32,
 }
 
 impl DeserFromBuf for Led {

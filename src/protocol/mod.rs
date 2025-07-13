@@ -147,7 +147,7 @@ impl OpenRgbProtocol {
                 &self.protocol_id,
             )
             .await?;
-        c.id = controller_id;
+        c.set_id(controller_id);
         Ok(c)
     }
 
@@ -221,7 +221,7 @@ impl OpenRgbProtocol {
     ///
     /// See [Open SDK documentation](https://gitlab.com/CalcProgrammer1/OpenRGB/-/wikis/OpenRGB-SDK-Documentation#net_packet_id_rgbcontroller_updatemode) for more information.
     pub async fn update_mode(&self, controller_id: u32, mode: &ModeData) -> OpenRgbResult<()> {
-        let packet = OpenRgbPacket::new((mode.index, mode));
+        let packet = OpenRgbPacket::new((mode.id() as u32, mode));
         self.write_packet(controller_id, PacketId::RGBControllerUpdateMode, &packet)
             .await
     }
@@ -282,7 +282,7 @@ impl OpenRgbProtocol {
     /// See [Open SDK documentation](https://gitlab.com/CalcProgrammer1/OpenRGB/-/wikis/OpenRGB-SDK-Documentation#net_packet_id_rgbcontroller_savemode) for more information.
     pub async fn save_mode(&self, controller_id: u32, mode: &ModeData) -> OpenRgbResult<()> {
         self.check_protocol_version(3, "Save mode")?;
-        let packet = OpenRgbPacket::new((mode.index, mode));
+        let packet = OpenRgbPacket::new((mode.id() as u32, mode));
         self.write_packet(controller_id, PacketId::RGBControllerSaveMode, &packet)
             .await
     }
@@ -393,7 +393,7 @@ mod tests {
         let count = client.get_controller_count().await?;
         if count > 0 {
             let controller = client.get_controller(0).await?;
-            assert_eq!(controller.id, 0);
+            assert_eq!(controller.id(), 0);
         }
         Ok(())
     }
@@ -424,7 +424,7 @@ mod tests {
     async fn test_update_mode() -> OpenRgbResult<()> {
         let client = OpenRgbProtocol::connect_to(DEFAULT_ADDR, DEFAULT_PROTOCOL).await?;
         let controller = client.get_controller(0).await?;
-        if let Some(mode) = controller.modes.first() {
+        if let Some(mode) = controller.modes().first() {
             let _ = client.update_mode(0, mode).await;
         }
         Ok(())
@@ -472,7 +472,7 @@ mod tests {
     async fn test_save_mode() -> OpenRgbResult<()> {
         let client = OpenRgbProtocol::connect_to(DEFAULT_ADDR, DEFAULT_PROTOCOL).await?;
         let controller = client.get_controller(0).await?;
-        if let Some(mode) = controller.modes.first() {
+        if let Some(mode) = controller.modes().first() {
             let _ = client.save_mode(0, mode).await;
         }
         Ok(())

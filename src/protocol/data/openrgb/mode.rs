@@ -105,61 +105,75 @@ impl_enum_discriminant!(ColorMode, None: 0, PerLED: 1, ModeSpecific: 2, Random: 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ModeData {
     /// Mode name.
-    pub name: String,
+    name: String,
 
     /// Device specific mode value
-    pub value: i32,
+    value: i32,
 
     /// Mode flags set.
-    pub flags: FlagSet<ModeFlag>,
+    flags: FlagSet<ModeFlag>,
 
     /// Mode minimum speed (if mode has [ModeFlag::HasSpeed] flag).
-    pub speed_min: u32,
+    speed_min: u32,
 
     /// Mode maximum speed (if mode has [ModeFlag::HasSpeed] flag).
-    pub speed_max: u32,
+    speed_max: u32,
 
     /// Mode maximum speed (if mode has [ModeFlag::HasSpeed] flag).
-    pub speed: u32,
+    speed: u32,
 
     /// Mode minimum brightness (if mode has [ModeFlag::HasBrightness] flag).
     ///
     /// Minimum protocol version: 3
-    pub brightness_min: ProtocolOption<3, u32>,
+    brightness_min: ProtocolOption<3, u32>,
 
     /// Mode maximum brightness (if mode has [ModeFlag::HasBrightness] flag).
     ///
     /// Minimum protocol version: 3
-    pub brightness_max: ProtocolOption<3, u32>,
+    brightness_max: ProtocolOption<3, u32>,
 
     /// Mode brightness (if mode has [ModeFlag::HasBrightness] flag).
     ///
     /// Minimum protocol version: 3
-    pub brightness: ProtocolOption<3, u32>,
+    brightness: ProtocolOption<3, u32>,
 
     /// Mode color mode.
-    pub color_mode: ColorMode,
+    color_mode: ColorMode,
 
     /// Mode colors.
-    pub colors: Vec<Color>,
+    colors: Vec<Color>,
 
     /// Mode minimum colors (if mode has non empty [ModeData::colors] list).
-    pub colors_min: u32,
+    colors_min: u32,
 
     /// Mode minimum colors (if mode has non empty [ModeData::colors] list).
-    pub colors_max: u32,
+    colors_max: u32,
 
     /// Mode direction.
-    pub direction: Direction,
+    direction: Direction,
 
     /// Index of this mode, not part of received packet but set right after reading
-    pub index: u32,
+    id: u32,
 }
 
 impl ModeData {
     /// Returns the name of this mode.
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    /// Returns the ID of this mode.
+    pub fn id(&self) -> usize {
+        self.id as usize
+    }
+
+    pub(crate) fn set_id(&mut self, id: usize) {
+        self.id = id as u32;
+    }
+
+    /// Returns the flags of this mode.
+    pub fn flags(&self) -> FlagSet<ModeFlag> {
+        self.flags
     }
 
     /// Returns the brightness setting of this mode, minimum protocol version: 3.
@@ -285,7 +299,7 @@ impl DeserFromBuf for ModeData {
         let colors = buf.read_value::<Vec<Color>>()?;
 
         Ok(ModeData {
-            index: u32::MAX,
+            id: u32::MAX,
             name,
             value,
             flags,
@@ -462,7 +476,7 @@ mod tests {
     #[test]
     fn test_write_001() -> Result<(), Box<dyn Error>> {
         let mode = ModeData {
-            index: u32::MAX,
+            id: u32::MAX,
             name: "test".to_string(),
             value: 46,
             flags: HasDirection | HasSpeed | HasBrightness,

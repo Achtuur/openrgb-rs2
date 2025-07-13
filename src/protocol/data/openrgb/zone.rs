@@ -38,12 +38,12 @@ flags! {
 ///
 /// See [Open SDK documentation](https://gitlab.com/CalcProgrammer1/OpenRGB/-/wikis/OpenRGB-SDK-Documentation#zone-data) for more information.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct ZoneData {
+pub(crate) struct ZoneData {
     /// Id of this zone.
     ///
     /// Not part of the packet, but set right after reading
     /// since the sender knows the zone id.
-    pub id: u32,
+    pub id: usize,
     /// Zone name.
     pub name: String,
 
@@ -51,9 +51,13 @@ pub struct ZoneData {
     pub zone_type: ZoneType,
 
     /// Zone minimum LED number.
+    ///
+    /// Minimum number of LEDs if this zone is resizable.
     pub leds_min: u32,
 
     /// Zone maximum LED number.
+    ///
+    /// Maximum number of LEDs if this zone is resizable.
     pub leds_max: u32,
 
     /// Zone LED count.
@@ -76,6 +80,52 @@ pub struct ZoneData {
     /// The value represents the LED id of the LED at that position.
     /// A value of `u32::MAX` means that there is no led present.
     pub matrix: Option<Array2D<u32>>,
+}
+
+impl ZoneData {
+    /// Id of this zone.
+    pub fn id(&self) -> usize {
+        self.id
+    }
+
+    /// Returns the name of this zone.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// [`ZoneType`] of this zone.
+    pub fn zone_type(&self) -> ZoneType {
+        self.zone_type
+    }
+
+    /// Minimum number of LEDs for this zone if it is resizable.
+    pub fn leds_min(&self) -> usize {
+        self.leds_min as usize
+    }
+
+    /// Maximum number of LEDs for this zone if it is resizable.
+    pub fn leds_max(&self) -> usize {
+        self.leds_max as usize
+    }
+
+    /// Number of LEDs in this zone.
+    pub fn leds_count(&self) -> usize {
+        self.leds_count as usize
+    }
+
+    /// Returns the segments in this zone.
+    ///
+    /// If the protocol version is lower than 4, this will return `None`, otherwise, this is always `Some`
+    pub fn segments(&self) -> Option<&[SegmentData]> {
+        self.segments.value().map(|s| s.as_slice())
+    }
+
+    /// LED matrix of this zone.
+    ///
+    /// If [`zone_type()`] is [`ZoneType::Matrix`], this will return `Some`.
+    pub fn matrix(&self) -> Option<&Array2D<u32>> {
+        self.matrix.as_ref()
+    }
 }
 
 impl DeserFromBuf for ZoneData {
@@ -106,7 +156,7 @@ impl DeserFromBuf for ZoneData {
 
         let flags = buf.read_value()?;
         Ok(Self {
-            id: u32::MAX,
+            id: usize::MAX,
             name,
             zone_type,
             leds_min,

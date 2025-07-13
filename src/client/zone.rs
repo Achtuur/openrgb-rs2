@@ -1,22 +1,22 @@
+use array2d::Array2D;
+
 use crate::{
-    Color, Controller, OpenRgbError, OpenRgbResult,
-    client::{command::UpdateCommand, segment::Segment},
-    data::{SegmentData, ZoneData},
+    client::{segment::Segment}, data::{SegmentData, ZoneData}, Color, Controller, OpenRgbError, OpenRgbResult, Command, ZoneType
 };
 
 /// A zone in a controller, which contains one or more LEDs.
 ///
 /// Zones can also contain segments, which are user-created subdivisions of the zone.
 pub struct Zone<'a> {
-    zone_id: usize,
     controller: &'a Controller,
+    zone_data: &'a ZoneData,
 }
 
 impl<'a> Zone<'a> {
-    pub(crate) fn new(controller: &'a Controller, zone_id: usize) -> Self {
+    pub(crate) fn new(controller: &'a Controller, zone_data: &'a ZoneData) -> Self {
         Self {
-            zone_id,
             controller,
+            zone_data,
         }
     }
 
@@ -27,67 +27,82 @@ impl<'a> Zone<'a> {
 
     /// Returns the ID of this zone.
     pub fn zone_id(&self) -> usize {
-        self.zone_id
+        self.zone_data.id()
     }
 
-    /// Returns the `ZoneData` for this zone
-    pub fn data(&self) -> &ZoneData {
-        // `Zone` can only be created if the zone is valid, so this zone must always exist
-        self.controller
-            .data()
-            .zones
-            .get(self.zone_id)
-            .expect("Invalid zone was created") // should be unreachable
+
+    delegate::delegate! {
+        to self.zone_data {
+            /// Returns the ID of this zone.
+            pub fn id(&self) -> usize;
+
+            /// Returns the name of this zone.
+            pub fn name(&self) -> &str;
+
+            /// Returns the type of this zone.
+            pub fn zone_type(&self) -> ZoneType;
+
+            /// Returns the minimum number of LEDs for this zone if it is resizable.
+            pub fn leds_min(&self) -> usize;
+
+            /// Returns the maximum number of LEDs for this zone if it is resizable.
+            pub fn leds_max(&self) -> usize;
+
+            /// Returns the number of LEDs in this zone.
+            #[call(leds_count)]
+            pub fn num_leds(&self) -> usize;
+
+            pub(crate) fn segments(&self) -> Option<&[SegmentData]>;
+            pub(crate) fn matrix(&self) -> Option<&Array2D<u32>>;
+        }
     }
 
     /// Returns the segment with the given `segment_id`.
     pub fn get_segment(&'a self, segment_id: usize) -> OpenRgbResult<Segment<'a>> {
-        let is_valid = self
-            .data()
-            .segments
-            .value()
-            .is_some_and(|seg| segment_id < seg.len());
-        if !is_valid {
-            return Err(OpenRgbError::CommandError(format!(
+        let Some(segments) = self.segments() else {
+            return Err(OpenRgbError::CommandError(
+                "Segments not supported in protocol version < 4".to_string()
+            ));
+        };
+        let data = segments.get(segment_id)
+            .ok_or(OpenRgbError::CommandError(format!(
                 "Segment with id {segment_id} not found in zone {}",
-                self.zone_id
-            )));
-        }
-        Ok(Segment::new(self, segment_id))
+                self.name()
+            )))?;
+        Ok(Segment::new(self, data))
     }
 
     /// Returns an iterator over all segments in this zone.
     pub fn get_all_segments(&'a self) -> impl Iterator<Item = Segment<'a>> {
-        self.data()
-            .segments
-            .value()
+        self.segments()
             .into_iter()
             .flatten()
-            .enumerate()
-            .map(move |(id, _)| Segment::new(self, id))
-    }
-
-    /// Returns the number of leds in this zone.
-    pub fn num_leds(&self) -> usize {
-        self.data().leds_count as usize
+            .map(move |s| Segment::new(self, s,))
     }
 
     /// Returns the offset of this zone in the controller's LED array.
     pub fn offset(&self) -> usize {
         self.controller
-            .get_zone_led_offset(self.zone_id)
+            .get_zone_led_offset(self.zone_id())
             .expect("Zone id should be valid")
     }
 
-    /// Returns a command to update the LEDs for this Zone to `colors`.
+    /// Creates a new [`UpdateLedCommand`] for the controller of this zone.
     ///
     /// The command must be executed by calling `.execute()`
-    pub fn update_leds_cmd(&'a self, colors: Vec<Color>) -> OpenRgbResult<UpdateCommand> {
-        Ok(UpdateCommand::Zone {
-            controller_id: self.controller.id(),
-            zone_id: self.zone_id,
-            colors,
-        })
+    #[must_use]
+    pub fn cmd(&'a self) -> Command<'a> {
+        Command::new(self.controller)
+    }
+
+    /// Returns a command to update the LEDs for this Zone to `colors`.
+    /// Equivalent to `cmd().set_zone_leds(self.zone_id(), colors)`.
+    ///
+    /// The command must be executed by calling `.execute()`
+    pub fn cmd_with_set_leds(&'a self, colors: impl IntoIterator<Item = Color>) -> OpenRgbResult<Command<'a>> {
+        let mut cmd = self.cmd();
+        cmd.set_zone_leds(self.zone_id(), colors)?;
+        Ok(cmd)
     }
 
     /// Sets a single LED in this zone to the given `color`.
@@ -99,7 +114,7 @@ impl<'a> Zone<'a> {
         if idx >= self.num_leds() {
             return Err(OpenRgbError::CommandError(format!(
                 "Index {idx} out of bounds for zone {} with {} LEDs",
-                self.zone_id,
+                self.name(),
                 self.num_leds()
             )));
         }
@@ -109,7 +124,7 @@ impl<'a> Zone<'a> {
 
     /// Sets all LEDs in this zone to the given `color`.
     pub async fn set_all_leds(&self, color: Color) -> OpenRgbResult<()> {
-        let colors = vec![color; self.data().leds_count as usize];
+        let colors = (0..self.num_leds()).map(|_| color);
         self.set_leds(colors).await
     }
 
@@ -119,13 +134,13 @@ impl<'a> Zone<'a> {
         if color_v.len() >= self.num_leds() {
             tracing::warn!(
                 "Zone {} for controller {} was given {} colors, while its length is {}. This might become a hard error in the future.",
-                self.zone_id,
+                self.name(),
                 self.controller.name(),
                 color_v.len(),
                 self.num_leds()
             );
         }
-        self.controller.set_zone_leds(self.zone_id, color_v).await
+        self.controller.set_zone_leds(self.zone_id(), color_v).await
     }
 
     /// Adds a segment to this zone.
@@ -147,7 +162,7 @@ impl<'a> Zone<'a> {
         let data = SegmentData::new(name.into(), start_idx as u32, led_count as u32);
         self.controller
             .proto()
-            .add_segment(self.controller.id() as u32, self.zone_id as u32, &data)
+            .add_segment(self.controller.id() as u32, self.zone_id() as u32, &data)
             .await
     }
 
@@ -163,7 +178,7 @@ impl<'a> Zone<'a> {
             .proto()
             .resize_zone(
                 self.controller.id() as u32,
-                self.zone_id as u32,
+                self.zone_id() as u32,
                 new_size as u32,
             )
             .await

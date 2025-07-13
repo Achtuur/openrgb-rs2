@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    Controller, OpenRgbError, OpenRgbResult, client::command::UpdateLedCommandGroup,
-    data::DeviceType,
+    client::{command::CommandGroup, group}, data::DeviceType, Controller, OpenRgbError, OpenRgbResult
 };
 
 /// Trait for things that can index into a `ControllerGroup`.
@@ -11,6 +10,8 @@ use crate::{
 pub trait ControllerIndex {
     /// Returns a reference to the controller with the given index.
     fn index(self, group: &ControllerGroup) -> OpenRgbResult<&Controller>;
+    /// Removes the controller with the given index from the group and returns it.
+    fn remove(self, group: &mut ControllerGroup) -> OpenRgbResult<Controller>;
 }
 
 impl ControllerIndex for usize {
@@ -22,23 +23,34 @@ impl ControllerIndex for usize {
                 "Controller with index {self} not found"
             )))
     }
+
+    fn remove(self, group: &mut ControllerGroup) -> OpenRgbResult<Controller> {
+        if self >= group.controllers.len() {
+            return Err(OpenRgbError::CommandError(format!(
+                "Controller with index {self} not found"
+            )));
+        }
+        Ok(group.controllers.remove(self))
+    }
 }
 
 impl ControllerIndex for &Controller {
     fn index(self, group: &ControllerGroup) -> OpenRgbResult<&Controller> {
-        group
-            .controllers
-            .get(self.id())
-            .ok_or(OpenRgbError::CommandError(format!(
-                "Controller {} not found",
-                self.name()
-            )))
+        self.id().index(group)
+    }
+
+    fn remove(self, group: &mut ControllerGroup) -> OpenRgbResult<Controller> {
+        self.id().remove(group)
     }
 }
 
 impl ControllerIndex for Controller {
     fn index(self, group: &ControllerGroup) -> OpenRgbResult<&Controller> {
         (&self).index(group)
+    }
+
+    fn remove(self, group: &mut ControllerGroup) -> OpenRgbResult<Controller> {
+        (&self).remove(group)
     }
 }
 
@@ -64,20 +76,6 @@ impl ControllerGroup {
         &self.controllers
     }
 
-    /// Splits the controllers in this group by their device type.
-    /// Returns one group per device type.
-    pub fn split_per_type(self) -> HashMap<DeviceType, ControllerGroup> {
-        self.controllers
-            .into_iter()
-            .fold(HashMap::new(), |mut acc, controller| {
-                let entry = acc
-                    .entry(controller.data().device_type)
-                    .or_insert_with(ControllerGroup::empty);
-                entry.controllers.push(controller);
-                acc
-            })
-    }
-
     /// Returns an iterator over the controllers in this group.
     pub fn iter(&self) -> impl Iterator<Item = &Controller> {
         self.controllers.iter()
@@ -91,6 +89,25 @@ impl ControllerGroup {
         I: ControllerIndex,
     {
         idx.index(self)
+    }
+
+    /// Splits the controllers in this group by their device type.
+    /// Returns one group per device type.
+    pub fn split_per_type(self) -> HashMap<DeviceType, ControllerGroup> {
+        self.controllers
+            .into_iter()
+            .fold(HashMap::new(), |mut acc, controller| {
+                let entry = acc
+                    .entry(controller.device_type())
+                    .or_insert_with(ControllerGroup::empty);
+                entry.controllers.push(controller);
+                acc
+            })
+    }
+
+    /// Returns an iterator over controllers of the given device type.
+    pub fn get_by_type(&self, device_type: DeviceType) -> impl Iterator<Item = &Controller> {
+        self.controllers.iter().filter(move |c| c.device_type() == device_type)
     }
 
     /// Returns the first controller in this group.
@@ -107,8 +124,8 @@ impl ControllerGroup {
     /// Creates a new `UpdateLedCommandGroup` for this controller group.
     ///
     /// See `Controller::cmd()` for more information.
-    pub fn cmd(&self) -> UpdateLedCommandGroup {
-        UpdateLedCommandGroup::new(self)
+    pub fn cmd(&self) -> CommandGroup {
+        CommandGroup::new(self)
     }
 
     /// Initializes all controllers in this group.

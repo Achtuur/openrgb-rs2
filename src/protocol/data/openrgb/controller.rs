@@ -28,68 +28,141 @@ flags! {
 ///
 /// See [Open SDK documentation](https://gitlab.com/CalcProgrammer1/OpenRGB/-/wikis/OpenRGB-SDK-Documentation#net_packet_id_request_controller_data) for more information.
 #[derive(Debug, Eq, PartialEq)]
-pub struct ControllerData {
+pub(crate) struct ControllerData {
     /// Controller type.
-    pub device_type: DeviceType,
+    device_type: DeviceType,
 
     /// Controller name.
-    pub name: String,
+    name: String,
 
     /// Controller vendor.
-    pub vendor: String,
+    vendor: String,
 
     /// Controller description.
-    pub description: String,
+    description: String,
 
     /// Controller version.
-    pub version: String,
+    version: String,
 
     /// Controller serial.
-    pub serial: String,
+    serial: String,
 
     /// Controller location.
-    pub location: String,
+    location: String,
 
     /// Controller active mode index.
-    pub active_mode: i32,
+    active_mode: i32,
 
     /// Controller modes.
-    pub modes: Vec<ModeData>,
+    modes: Vec<ModeData>,
 
     /// Controller zones.
-    pub zones: Vec<ZoneData>,
+    zones: Vec<ZoneData>,
 
     /// Controller LEDs.
-    pub leds: Vec<Led>,
+    leds: Vec<Led>,
 
     /// Controller colors.
-    pub colors: Vec<Color>,
+    colors: Vec<Color>,
 
     /// Alternate names for LEDs (?)
     ///
     /// Minimum protocol version: 5
-    pub led_alt_names: ProtocolOption<5, Vec<String>>,
+    led_alt_names: ProtocolOption<5, Vec<String>>,
 
     /// flags
     ///
     /// Minimum protocol version: 5
-    pub flags: ProtocolOption<5, FlagSet<ControllerFlags>>,
+    flags: ProtocolOption<5, FlagSet<ControllerFlags>>,
 
     /* NOT IN PROTOCOL, BUT USEFUL */
     /// Id of this controller, which is the id used to make the request.
-    pub id: u32,
+    id: u32,
     /// Number of LEDs in this controller.
     ///
     /// Computed by adding up the zone's lengths.
-    pub num_leds: usize,
+    num_leds: usize,
 }
 
 impl ControllerData {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn device_type(&self) -> DeviceType {
+        self.device_type
+    }
+
+    pub fn vendor(&self) -> &str {
+        &self.vendor
+    }
+
+    pub fn description(&self) -> &str {
+        &self.description
+    }
+
+    pub fn version(&self) -> &str {
+        &self.version
+    }
+
+    pub fn serial(&self) -> &str {
+        &self.serial
+    }
+
+    pub fn location(&self) -> &str {
+        &self.location
+    }
+
     /// Returns the mode of this controller that is currently active.
     ///
     /// Currently unsure if this can ever be `None`
     pub fn active_mode(&self) -> Option<&ModeData> {
         self.modes.get(self.active_mode as usize)
+    }
+
+    /// Returns the modes this controller has.
+    pub fn modes(&self) -> &[ModeData] {
+        &self.modes
+    }
+
+    /// Returns the zones of this controller.
+    pub fn zones(&self) -> &[ZoneData] {
+        &self.zones
+    }
+
+    /// Returns the LEDs of this controller.
+    pub fn leds(&self) -> &[Led] {
+        &self.leds
+    }
+
+    /// The number of LEDs in all zones of this controller summed together.
+    ///
+    /// This is not necessarily the same as [`leds()`]'s length.
+    pub fn num_leds(&self) -> usize {
+        self.num_leds
+    }
+
+    /// Returns the colors of this controller.
+    pub fn colors(&self) -> &[Color] {
+        &self.colors
+    }
+
+    /// Returns the alternate names for LEDs, only supported in protocol version 5 and above.
+    pub fn led_alt_names(&self) -> Option<&[String]> {
+        self.led_alt_names.value().map(|v| v.as_slice())
+    }
+
+    /// Returns the flags for this controller. Only supported in protocol version 5 and above.
+    pub fn flags(&self) -> Option<FlagSet<ControllerFlags>> {
+        self.flags.value().copied()
+    }
+
+    pub fn id(&self) -> u32 {
+        self.id
+    }
+
+    pub(crate) fn set_id(&mut self, id: u32) {
+        self.id = id;
     }
 }
 
@@ -108,13 +181,13 @@ impl DeserFromBuf for ControllerData {
 
         let mut modes = buf.read_n_values::<ModeData>(num_modes as usize)?;
         for (idx, mode) in modes.iter_mut().enumerate() {
-            mode.index = idx as u32;
+            mode.set_id(idx);
         }
 
         let mut zones = buf.read_value::<Vec<ZoneData>>()?;
         let mut num_leds = 0;
         for (idx, zone) in zones.iter_mut().enumerate() {
-            zone.id = idx as u32;
+            zone.id = idx;
             num_leds += zone.leds_count as usize;
         }
 

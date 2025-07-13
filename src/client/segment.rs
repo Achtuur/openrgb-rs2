@@ -1,19 +1,19 @@
-use crate::{Color, OpenRgbResult, Zone, client::command::UpdateCommand, data::SegmentData};
+use crate::{data::SegmentData, Color, OpenRgbResult, Command, Zone};
 
 /// A segment in a zone, which can contain multiple LEDs.
-pub struct Segment<'z> {
-    zone: &'z Zone<'z>,
-    segment_id: usize,
+pub struct Segment<'a> {
+    zone: &'a Zone<'a>,
+    segment_data: &'a SegmentData,
 }
 
-impl<'z> Segment<'z> {
-    pub(crate) fn new(zone: &'z Zone<'z>, segment_id: usize) -> Self {
-        Self { zone, segment_id }
+impl<'a> Segment<'a> {
+    pub(crate) fn new(zone: &'a Zone<'a>, segment_data: &'a SegmentData) -> Self {
+        Self { zone, segment_data }
     }
 
     /// Returns the ID of this segment.
-    pub fn id(&self) -> usize {
-        self.segment_id
+    pub fn segment_id(&self) -> usize {
+        self.segment_data.id()
     }
 
     /// Returns the ID of the the controller this segment's zone belongs to.
@@ -28,41 +28,35 @@ impl<'z> Segment<'z> {
 
     /// Returns the name of this segment.
     pub fn name(&self) -> &str {
-        self.data().name()
-    }
-
-    /// Returns the `SegmentData` for this segment.
-    pub fn data(&self) -> &SegmentData {
-        self.zone
-            .data()
-            .segments
-            .value()
-            .expect("Segment struct created with protocol version < 4")
-            .get(self.segment_id)
-            .expect("Segment data not found")
+        self.segment_data.name()
     }
 
     /// Returns the number of LEDs in this segment.
     ///
     /// `Zone.leds[offset()..offset() + num_leds()]` will return the LEDs in this segment.
     pub fn num_leds(&self) -> usize {
-        self.data().led_count() as usize
+        self.segment_data.led_count() as usize
     }
 
     /// Returns the index offset of this segment in the zone.
     ///
     /// `Zone.leds[offset()..offset() + num_leds()]` will return the LEDs in this segment.
     pub fn offset(&self) -> usize {
-        self.data().offset() as usize
+        self.segment_data.offset() as usize
     }
 
-    /// Returns a command to update the LEDs in this segment.
-    pub fn update_leds_cmd(&self, colors: Vec<Color>) -> OpenRgbResult<UpdateCommand> {
-        Ok(UpdateCommand::Segment {
-            controller_id: self.zone.controller_id(),
-            zone_id: self.zone.zone_id(),
-            segment_id: self.segment_id,
-            colors,
-        })
+    /// Creates a new [`UpdateLedCommand`] for the controller of this segment's zone.
+    #[must_use]
+    pub fn cmd(&'a self) -> Command<'a> {
+        self.zone.cmd()
+    }
+
+    /// Returns a command to update the LEDs for this Zone to `colors`.
+    ///
+    /// The command must be executed by calling `.execute()`
+    pub fn cmd_with_set_leds(&'a self, colors: impl IntoIterator<Item = Color>) -> OpenRgbResult<Command<'a>> {
+        let mut cmd = self.cmd();
+        cmd.set_segment_leds(self.zone_id(), self.segment_id(), colors)?;
+        Ok(cmd)
     }
 }
