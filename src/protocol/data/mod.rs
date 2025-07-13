@@ -23,6 +23,7 @@ pub use protocol_option::*;
 ///
 /// Previously this was derived using the Primitive crate, but that's a lot of overhead for such a simple feature
 #[macro_export]
+#[doc(hidden)]
 macro_rules! impl_enum_discriminant {
     ($enum: tt, $($var:ident: $value:expr),+) => {
         impl TryFrom<u32> for $enum {
