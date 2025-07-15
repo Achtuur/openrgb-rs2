@@ -17,7 +17,7 @@ impl std::fmt::Display for ReceivedMessage<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Received (protocol: {}, offset: {}): {:?})",
+            "Received (protocol: {}, offset: {}): {:?}",
             self.protocol_version,
             self.idx,
             self.available_buf()
