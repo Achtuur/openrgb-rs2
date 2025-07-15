@@ -28,47 +28,45 @@ impl SerToBuf for Color {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use std::error::Error;
+#[cfg(test)]
+mod tests {
+    use crate::protocol::data::Color;
+    use crate::{OpenRgbResult, WriteMessage};
 
-//     use tokio_test::io::Builder;
+    #[tokio::test]
+    async fn test_read_001() -> OpenRgbResult<()> {
+        let mut buf = WriteMessage::new(0);
+        buf.write_slice(&[37_u8, 54_u8, 126_u8, 0_u8]);
+        let mut msg = buf.to_received_msg();
 
-//     use crate::protocol::data::Color;
-//     use crate::protocol::tests::setup;
+        assert_eq!(
+            msg.read_value::<Color>()?,
+            Color {
+                r: 37,
+                g: 54,
+                b: 126
+            }
+        );
 
-//     #[tokio::test]
-//     async fn test_read_001() -> Result<(), Box<dyn Error>> {
-//         setup()?;
+        Ok(())
+    }
 
-//         let mut stream = Builder::new().read(&[37_u8, 54_u8, 126_u8, 0_u8]).build();
+    #[tokio::test]
+    async fn test_write_001() -> OpenRgbResult<()> {
+        let mut buf = WriteMessage::new(0);
+        let c = Color {
+            r: 37,
+            g: 54,
+            b: 126,
+        };
+        buf.write_value(&c)?;
+        let mut msg = buf.to_received_msg();
 
-//         assert_eq!(
-//             stream.read_value::<Color>().await?,
-//             Color {
-//                 r: 37,
-//                 g: 54,
-//                 b: 126
-//             }
-//         );
+        assert_eq!(
+            &msg.read_n_values::<u8>(4)?,
+            &[37_u8, 54_u8, 126_u8, 0_u8]
+        );
 
-//         Ok(())
-//     }
-
-//     #[tokio::test]
-//     async fn test_write_001() -> Result<(), Box<dyn Error>> {
-//         setup()?;
-
-//         let mut stream = Builder::new().write(&[37_u8, 54_u8, 126_u8, 0_u8]).build();
-
-//         stream
-//             .write_value(&Color {
-//                 r: 37,
-//                 g: 54,
-//                 b: 126,
-//             })
-//             .await?;
-
-//         Ok(())
-//     }
-// }
+        Ok(())
+    }
+}

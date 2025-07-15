@@ -147,34 +147,35 @@ impl Controller {
     /// Sets a single LED to the given `color`.
     ///
     /// When doing many writes in rapid succession, it is recommended to use the [`Self::cmd()`] method instead.
-    pub async fn set_led(&self, led: usize, color: Color) -> OpenRgbResult<()> {
+    pub async fn set_led<C: Into<Color>>(&self, led: usize, color: C) -> OpenRgbResult<()> {
         self.proto
-            .update_led(self.id as u32, led as i32, &color)
+            .update_led(self.id as u32, led as i32, &color.into())
             .await
     }
 
     /// Sets all LEDs of this controller to a given `color`.
-    pub async fn set_all_leds(&self, color: Color) -> OpenRgbResult<()> {
-        let colors = vec![color; self.num_leds()];
+    pub async fn set_all_leds<C: Into<Color>>(&self, color: C) -> OpenRgbResult<()> {
+        let color = color.into();
+        let colors = (0..self.num_leds()).map(|_| color);
         self.set_leds(colors).await?;
         Ok(())
     }
 
     /// Sets the LEDs of this controller to the given `colors`.
-    pub async fn set_leds(&self, colors: impl IntoIterator<Item = Color>) -> OpenRgbResult<()> {
-        let color_v = colors.into_iter().collect::<Vec<_>>();
+    pub async fn set_leds<C: Into<Color>>(&self, colors: impl IntoIterator<Item = C>) -> OpenRgbResult<()> {
+        let color_v = colors.into_iter().map(Into::into).collect::<Vec<_>>();
         self.proto
-            .update_leds(self.id as u32, color_v.as_slice())
+            .update_leds(self.id as u32, &color_v)
             .await
     }
 
     /// Sets the LEDs of a specific zone to the given `colors`.
-    pub async fn set_zone_leds(
+    pub async fn set_zone_leds<C: Into<Color>>(
         &self,
         zone_id: usize,
-        colors: impl IntoIterator<Item = Color>,
+        colors: impl IntoIterator<Item = C>,
     ) -> OpenRgbResult<()> {
-        let color_v = colors.into_iter().collect::<Vec<_>>();
+        let color_v = colors.into_iter().map(Into::into).collect::<Vec<_>>();
         self.proto
             .update_zone_leds(self.id as u32, zone_id as u32, &color_v)
             .await

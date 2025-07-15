@@ -8,49 +8,45 @@ use crate::{
 ///
 /// Currently includes `usize` (`Controller::id()`) and `&Controller`.
 pub trait ControllerIndex {
+    /// Returns the ID of the controller
+    fn controller_id(&self) -> usize;
     /// Returns a reference to the controller with the given index.
-    fn index(self, group: &ControllerGroup) -> OpenRgbResult<&Controller>;
+    fn index<'a>(&self, group: &'a ControllerGroup) -> OpenRgbResult<&'a Controller> {
+        group
+            .controllers
+            .get(self.controller_id())
+            .ok_or(OpenRgbError::CommandError(format!(
+                "Controller with index {} not found",
+                self.controller_id()
+            )))
+    }
     /// Removes the controller with the given index from the group and returns it.
-    fn remove(self, group: &mut ControllerGroup) -> OpenRgbResult<Controller>;
+    fn remove(&self, group: &mut ControllerGroup) -> OpenRgbResult<Controller> {
+        let index = self.controller_id();
+        if index >= group.controllers.len() {
+            return Err(OpenRgbError::CommandError(format!(
+                "Controller with index {index} not found"
+            )));
+        }
+        Ok(group.controllers.remove(index))
+    }
 }
 
 impl ControllerIndex for usize {
-    fn index(self, group: &ControllerGroup) -> OpenRgbResult<&Controller> {
-        group
-            .controllers
-            .get(self)
-            .ok_or(OpenRgbError::CommandError(format!(
-                "Controller with index {self} not found"
-            )))
-    }
-
-    fn remove(self, group: &mut ControllerGroup) -> OpenRgbResult<Controller> {
-        if self >= group.controllers.len() {
-            return Err(OpenRgbError::CommandError(format!(
-                "Controller with index {self} not found"
-            )));
-        }
-        Ok(group.controllers.remove(self))
+    fn controller_id(&self) -> usize {
+        *self
     }
 }
 
 impl ControllerIndex for &Controller {
-    fn index(self, group: &ControllerGroup) -> OpenRgbResult<&Controller> {
-        self.id().index(group)
-    }
-
-    fn remove(self, group: &mut ControllerGroup) -> OpenRgbResult<Controller> {
-        self.id().remove(group)
+    fn controller_id(&self) -> usize {
+        self.id()
     }
 }
 
 impl ControllerIndex for Controller {
-    fn index(self, group: &ControllerGroup) -> OpenRgbResult<&Controller> {
-        (&self).index(group)
-    }
-
-    fn remove(self, group: &mut ControllerGroup) -> OpenRgbResult<Controller> {
-        (&self).remove(group)
+    fn controller_id(&self) -> usize {
+        (&self).controller_id()
     }
 }
 
@@ -74,6 +70,11 @@ impl ControllerGroup {
     /// Returns a reference to the controllers in this group.
     pub fn controllers(&self) -> &[Controller] {
         &self.controllers
+    }
+
+    /// Returns a mutable reference to the controllers in this group.
+    pub fn controllers_mut(&mut self) -> &mut [Controller] {
+        &mut self.controllers
     }
 
     /// Returns true if this group has no controllers.
