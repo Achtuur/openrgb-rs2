@@ -162,11 +162,12 @@ impl Controller {
     }
 
     /// Sets the LEDs of this controller to the given `colors`.
-    pub async fn set_leds<C: Into<Color>>(&self, colors: impl IntoIterator<Item = C>) -> OpenRgbResult<()> {
+    pub async fn set_leds<C: Into<Color>>(
+        &self,
+        colors: impl IntoIterator<Item = C>,
+    ) -> OpenRgbResult<()> {
         let color_v = colors.into_iter().map(Into::into).collect::<Vec<_>>();
-        self.proto
-            .update_leds(self.id as u32, &color_v)
-            .await
+        self.proto.update_leds(self.id as u32, &color_v).await
     }
 
     /// Sets the LEDs of a specific zone to the given `colors`.

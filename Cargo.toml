@@ -1,6 +1,6 @@
 [package]
 name = "openrgb2"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 rust-version = "1.85"
 authors = [
@@ -19,7 +19,6 @@ exclude = [".github/*", ".run/*"]
 
 [dependencies]
 array2d = "0.3.2"
-async-trait = "0.1.88"
 delegate = "0.13.3"
 flagset = "0.4.7"
 rgb = "0.8.51"

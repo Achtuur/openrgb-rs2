@@ -136,8 +136,11 @@ impl<'a> Zone<'a> {
     }
 
     /// Sets the LEDs in this zone to the given colors.
-    pub async fn set_leds<C: Into<Color>>(&self, colors: impl IntoIterator<Item = C>) -> OpenRgbResult<()> {
-        let color_v = colors.into_iter().collect::<Vec<_>>();
+    pub async fn set_leds<C: Into<Color>>(
+        &self,
+        colors: impl IntoIterator<Item = C>,
+    ) -> OpenRgbResult<()> {
+        let mut color_v = colors.into_iter().map(Into::into).collect::<Vec<_>>();
         if color_v.len() >= self.num_leds() {
             tracing::warn!(
                 "Zone {} for controller {} was given {} colors, while its length is {}. This might become a hard error in the future.",
@@ -146,13 +149,19 @@ impl<'a> Zone<'a> {
                 color_v.len(),
                 self.num_leds()
             );
+        } else if color_v.len() < self.num_leds() {
+            color_v.extend(
+                (color_v.len()..self.num_leds())
+                    .map(|_| Color::default()),
+            )
         }
+
         self.controller.set_zone_leds(self.zone_id(), color_v).await
     }
 
     /// Adds a segment to this zone.
     ///
-    /// Controller data must be resynced using [`Controller::sync_controller_data(`]
+    /// Controller data must be resynced using [`Controller::sync_controller_data()`]
     pub async fn add_segment(
         &self,
         name: impl Into<String>,
@@ -177,11 +186,15 @@ impl<'a> Zone<'a> {
 
     /// Clears the segments for this CONTROLLER.
     /// This clears all segments for all zones of the controller, not just this zone.
+    ///
+    /// Controller data must be resynced using [`Controller::sync_controller_data()`]
     pub async fn clear_segments(&self) -> OpenRgbResult<()> {
         self.controller.clear_segments().await
     }
 
     /// Resizes this zone to a new size.
+    ///
+    /// Controller data must be resynced using [`Controller::sync_controller_data()`]
     pub async fn resize(&self, new_size: usize) -> OpenRgbResult<()> {
         self.controller
             .proto()

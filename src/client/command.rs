@@ -189,11 +189,17 @@ impl<'a> Command<'a> {
 
     /// Adds a command to update a single LED in this controller.
     pub fn set_led<C: Into<Color>>(&mut self, led_id: usize, color: C) -> OpenRgbResult<()> {
-        self.add_command(SetLedCommand::Single { led_id, color: color.into() })
+        self.add_command(SetLedCommand::Single {
+            led_id,
+            color: color.into(),
+        })
     }
 
     /// Adds a command to update multiple LEDs in this controller.
-    pub fn set_leds<C: Into<Color>>(&mut self, colors: impl IntoIterator<Item = C>) -> OpenRgbResult<()> {
+    pub fn set_leds<C: Into<Color>>(
+        &mut self,
+        colors: impl IntoIterator<Item = C>,
+    ) -> OpenRgbResult<()> {
         self.add_command(SetLedCommand::Controller {
             colors: colors.into_iter().map(Into::into).collect(),
         })
@@ -238,7 +244,10 @@ impl<'a> Command<'a> {
                 .get_zone(zone_id)?
                 .get_segment(segment_id)?
                 .offset();
-        self.add_command(SetLedCommand::Single { led_id, color: color.into() })
+        self.add_command(SetLedCommand::Single {
+            led_id,
+            color: color.into(),
+        })
     }
 
     /// Adds a command to update multiple LEDs in a segment in a zone in this controller.

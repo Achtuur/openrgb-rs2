@@ -1,4 +1,4 @@
-use crate::{Color, Command, OpenRgbResult, Zone, data::SegmentData};
+use crate::{data::SegmentData, Color, Command, OpenRgbError, OpenRgbResult, Zone};
 
 /// A segment in a zone, which can contain multiple LEDs.
 pub struct Segment<'a> {
@@ -45,6 +45,37 @@ impl<'a> Segment<'a> {
         self.segment_data.offset() as usize
     }
 
+    /// Sets a single LED in this segment to the given `color`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the index is out of bounds for this zone.
+    pub async fn set_led<C: Into<Color>>(&self, idx: usize, color: C) -> OpenRgbResult<()> {
+        if idx >= self.num_leds() {
+            return Err(OpenRgbError::CommandError(format!(
+                "Index {idx} out of bounds for zone {} with {} LEDs",
+                self.name(),
+                self.num_leds()
+            )));
+        }
+        let idx = self.offset() + idx;
+        self.zone.set_led(idx, color).await
+    }
+
+    /// Sets all LEDs in this segment to the given `color`.
+    ///
+    /// # Limitation
+    ///
+    /// This will set every other LED in the zone to black, as those colors are not specified.
+    /// To get around this, use `[Self::cmd()]` instead and specify the zone color.
+    pub async fn set_all_leds<C: Into<Color>>(&self, color: C) -> OpenRgbResult<()> {
+        let color = color.into();
+        let colors = (0..self.offset()).map(|_| Color::default())
+            .chain((0..self.num_leds()).map(|_| color));
+
+        self.zone.set_leds(colors).await
+    }
+
     /// Creates a new [`Command`] for the controller of this segment's zone.
     #[must_use]
     pub fn cmd(&'a self) -> Command<'a> {
@@ -54,9 +85,9 @@ impl<'a> Segment<'a> {
     /// Returns a command to update the LEDs for this Zone to `colors`.
     ///
     /// The command must be executed by calling `.execute()`
-    pub fn cmd_with_set_leds(
+    pub fn cmd_with_set_leds<C: Into<Color>>(
         &'a self,
-        colors: impl IntoIterator<Item = Color>,
+        colors: impl IntoIterator<Item = C>,
     ) -> OpenRgbResult<Command<'a>> {
         let mut cmd = self.cmd();
         cmd.set_segment_leds(self.zone_id(), self.segment_id(), colors)?;

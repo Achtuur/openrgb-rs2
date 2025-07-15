@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 (future)
+
+- Breaking: change `Segment::segment_id() -> Segment::id()`
+
+## 0.2.1
+
+- Use `Into<Color>` for methods that used to take a `Color`
+- Add a few more docs
+- Remove `async_trait` dependency
+
 ## 0.2.0
 
 - Breaking: change `Command` struct and method names to be more consistent.

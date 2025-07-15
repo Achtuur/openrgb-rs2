@@ -62,10 +62,7 @@ mod tests {
         buf.write_value(&c)?;
         let mut msg = buf.to_received_msg();
 
-        assert_eq!(
-            &msg.read_n_values::<u8>(4)?,
-            &[37_u8, 54_u8, 126_u8, 0_u8]
-        );
+        assert_eq!(&msg.read_n_values::<u8>(4)?, &[37_u8, 54_u8, 126_u8, 0_u8]);
 
         Ok(())
     }
