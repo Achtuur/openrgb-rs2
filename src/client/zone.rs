@@ -150,10 +150,7 @@ impl<'a> Zone<'a> {
                 self.num_leds()
             );
         } else if color_v.len() < self.num_leds() {
-            color_v.extend(
-                (color_v.len()..self.num_leds())
-                    .map(|_| Color::default()),
-            )
+            color_v.extend((color_v.len()..self.num_leds()).map(|_| Color::default()))
         }
 
         self.controller.set_zone_leds(self.zone_id(), color_v).await

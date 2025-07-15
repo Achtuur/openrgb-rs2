@@ -1,4 +1,4 @@
-use crate::{data::SegmentData, Color, Command, OpenRgbError, OpenRgbResult, Zone};
+use crate::{Color, Command, OpenRgbError, OpenRgbResult, Zone, data::SegmentData};
 
 /// A segment in a zone, which can contain multiple LEDs.
 pub struct Segment<'a> {
@@ -83,12 +83,18 @@ impl<'a> Segment<'a> {
     /// This will set every other LED in the zone to black, as those colors are not specified.
     /// To get around this, use `[Self::cmd()]` instead and specify the zone color.
     /// See the `segment.rs` example for an example
-    pub async fn set_leds<C: Into<Color>>(&self, colors: impl IntoIterator<Item = C>) -> OpenRgbResult<()> {
+    pub async fn set_leds<C: Into<Color>>(
+        &self,
+        colors: impl IntoIterator<Item = C>,
+    ) -> OpenRgbResult<()> {
         let color_v = colors.into_iter().map(Into::into).collect::<Vec<_>>();
         if color_v.len() != self.num_leds() {
             tracing::warn!(
                 "Segment {} for zone {} was given {} colors, while its length is {}. This might become a hard error in the future.",
-                self.name(), self.zone.name(), color_v.len(), self.num_leds()
+                self.name(),
+                self.zone.name(),
+                color_v.len(),
+                self.num_leds()
             )
         }
         let seg_colors = self.prepend_colors(color_v);
@@ -102,7 +108,6 @@ impl<'a> Segment<'a> {
         let color_v = colors.into_iter().map(Into::into);
         (0..self.offset()).map(|_| Color::default()).chain(color_v)
     }
-
 
     /// Creates a new [`Command`] for the controller of this segment's zone.
     #[must_use]

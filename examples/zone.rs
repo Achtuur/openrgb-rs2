@@ -4,7 +4,9 @@ use openrgb2::{Color, DeviceType, OpenRgbClient, OpenRgbResult};
 async fn main() -> OpenRgbResult<()> {
     // connect to local server
     let client = OpenRgbClient::connect().await?;
-    let group = client.get_controllers_of_type(DeviceType::Motherboard).await?;
+    let group = client
+        .get_controllers_of_type(DeviceType::Motherboard)
+        .await?;
     let controller = group.into_first().expect("No motherboard controller found");
     println!("Controller: {}", controller.name());
 
