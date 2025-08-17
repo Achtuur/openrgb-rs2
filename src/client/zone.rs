@@ -54,7 +54,7 @@ impl<'a> Zone<'a> {
             pub fn num_leds(&self) -> usize;
 
             pub(crate) fn segments(&self) -> Option<&[SegmentData]>;
-            #[allow(unused)]
+            #[expect(unused, reason = "Api not finalised yet")]
             pub(crate) fn matrix(&self) -> Option<&Array2D<u32>>;
         }
     }
@@ -63,15 +63,15 @@ impl<'a> Zone<'a> {
     pub fn get_segment(&'a self, segment_id: usize) -> OpenRgbResult<Segment<'a>> {
         let Some(segments) = self.segments() else {
             return Err(OpenRgbError::CommandError(
-                "Segments not supported in protocol version < 4".to_string(),
+                "Segments not supported in protocol version < 4".to_owned(),
             ));
         };
-        let data = segments
-            .get(segment_id)
-            .ok_or(OpenRgbError::CommandError(format!(
+        let data = segments.get(segment_id).ok_or_else(|| {
+            OpenRgbError::CommandError(format!(
                 "Segment with id {segment_id} not found in zone {}",
                 self.name()
-            )))?;
+            ))
+        })?;
         Ok(Segment::new(self, data))
     }
 

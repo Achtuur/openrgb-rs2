@@ -18,7 +18,7 @@
 //! ```
 //!
 //! This crates provides the `OpenRgbClient` and `Controller` structs.
-//! The client is used to connect to the OpenRGB server and retrieve `Controller`s,
+//! The client is used to connect to the `OpenRGB` server and retrieve `Controller`s,
 //! after which RGB control can be done using the `Controller`.
 //!
 //! See [examples](https://github.com/Achtuur/openrgb-rs2/tree/master/examples), and [`OpenRgbClient`] for client API.

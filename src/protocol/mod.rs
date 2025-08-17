@@ -299,13 +299,20 @@ impl OpenRgbProtocol {
     /// Performs a plugin specific command. Depends on the plugin what this does.
     ///
     /// In this case, the `pkt_dev_idx` (`controller_id`) is used as the Plugin ID.
-    pub async fn plugin_specific_receive<I, O>(&self, plugin_id: u32, header: u32, data: &I) -> OpenRgbResult<O>
+    pub async fn plugin_specific_receive<I, O>(
+        &self,
+        plugin_id: u32,
+        header: u32,
+        data: &I,
+    ) -> OpenRgbResult<O>
     where
         I: SerToBuf,
         O: DeserFromBuf,
     {
         self.check_protocol_version(4, "Plugin Specific Command")?;
-        let (recv_header, resp): (u32, O) = self.request(plugin_id, PacketId::PluginSpecific, &(header, data)).await?;
+        let (recv_header, resp): (u32, O) = self
+            .request(plugin_id, PacketId::PluginSpecific, &(header, data))
+            .await?;
         if header != recv_header {
             return Err(OpenRgbError::ProtocolError(format!(
                 "Plugin Specific Command header mismatch: expected {header}, got {recv_header}"
@@ -314,11 +321,18 @@ impl OpenRgbProtocol {
         Ok(resp)
     }
 
-    pub async fn plugin_specific_write_packet<I>(&self, plugin_id: u32, header: u32, data: &I) -> OpenRgbResult<()> 
-    where I: SerToBuf
+    pub async fn plugin_specific_write_packet<I>(
+        &self,
+        plugin_id: u32,
+        header: u32,
+        data: &I,
+    ) -> OpenRgbResult<()>
+    where
+        I: SerToBuf,
     {
         self.check_protocol_version(4, "Plugin Specific Command")?;
-        self.write_packet(plugin_id, PacketId::PluginSpecific, &(header, data)).await
+        self.write_packet(plugin_id, PacketId::PluginSpecific, &(header, data))
+            .await
     }
 
     pub async fn add_segment(
@@ -360,29 +374,44 @@ impl OpenRgbProtocol {
 
     /* EFFECTS PLUGIN */
 
-    pub async fn effect_plugin_get_effects(&self, effects_plugin_id: u32) -> OpenRgbResult<Vec<PluginEffect>> {
-        let (_data_size, list): (u32, Vec<_>) = self.plugin_specific_receive(
-            effects_plugin_id,
-            EffectsPluginPacket::RequestEffectList.into(),
-            &(),
-        ).await?;
+    pub async fn effect_plugin_get_effects(
+        &self,
+        effects_plugin_id: u32,
+    ) -> OpenRgbResult<Vec<PluginEffect>> {
+        let (_data_size, list): (u32, Vec<_>) = self
+            .plugin_specific_receive(
+                effects_plugin_id,
+                EffectsPluginPacket::RequestEffectList.into(),
+                &(),
+            )
+            .await?;
         Ok(list)
     }
 
-    pub async fn effect_plugin_start_effect(&self, effect_plugin_id: u32, effect_name: &str) -> OpenRgbResult<()> {
+    pub async fn effect_plugin_start_effect(
+        &self,
+        effect_plugin_id: u32,
+        effect_name: &str,
+    ) -> OpenRgbResult<()> {
         self.plugin_specific_write_packet(
             effect_plugin_id,
             EffectsPluginPacket::StartEffect.into(),
-            &effect_name
-        ).await
+            &effect_name,
+        )
+        .await
     }
 
-    pub async fn effect_plugin_stop_effect(&self, effect_plugin_id: u32, effect_name: &str) -> OpenRgbResult<()> {
+    pub async fn effect_plugin_stop_effect(
+        &self,
+        effect_plugin_id: u32,
+        effect_name: &str,
+    ) -> OpenRgbResult<()> {
         self.plugin_specific_write_packet(
             effect_plugin_id,
             EffectsPluginPacket::StopEffect.into(),
-            &effect_name
-        ).await
+            &effect_name,
+        )
+        .await
     }
 }
 
@@ -578,7 +607,6 @@ mod tests {
         // client.update_led(4, 0, &Color::new(255, 0, 0)).await?;
         Ok(())
     }
-
 
     #[tokio::test]
     #[traced_test]

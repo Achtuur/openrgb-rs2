@@ -3,7 +3,7 @@ use crate::{
     protocol::{DeserFromBuf, ReceivedMessage, SerToBuf, WriteMessage},
 };
 
-/// Data for OpenRGB segments
+/// Data for `OpenRGB` segments
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct SegmentData {
     name: String,
@@ -58,7 +58,7 @@ impl DeserFromBuf for SegmentData {
     fn deserialize(buf: &mut ReceivedMessage<'_>) -> OpenRgbResult<Self> {
         if buf.protocol_version() < 4 {
             return Err(OpenRgbError::ProtocolError(
-                "SegmentData is not supported in protocol version < 4".to_string(),
+                "SegmentData is not supported in protocol version < 4".to_owned(),
             ));
         }
 
@@ -81,7 +81,7 @@ impl SerToBuf for SegmentData {
     fn serialize(&self, buf: &mut WriteMessage) -> OpenRgbResult<()> {
         if buf.protocol_version() < 4 {
             return Err(OpenRgbError::ProtocolError(
-                "SegmentData is not supported in protocol version < 4".to_string(),
+                "SegmentData is not supported in protocol version < 4".to_owned(),
             ));
         }
         buf.write_value(&self.name)?;

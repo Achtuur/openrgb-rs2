@@ -61,7 +61,7 @@ mod tests {
             .push_value(&RawString("test"))?
             .to_received_msg();
 
-        assert_eq!(msg.read_value::<String>()?, "test".to_string());
+        assert_eq!(msg.read_value::<String>()?, "test".to_owned());
         Ok(())
     }
 
@@ -70,7 +70,7 @@ mod tests {
         let mut buf = WriteMessage::new(crate::DEFAULT_PROTOCOL);
         buf.write_value(&"test")?;
         let mut msg = buf.to_received_msg();
-        assert_eq!(msg.read_value::<String>()?, "test".to_string());
+        assert_eq!(msg.read_value::<String>()?, "test".to_owned());
         Ok(())
     }
 }

@@ -47,7 +47,7 @@ impl<'a> ReceivedMessage<'a> {
         let b = self.available_buf();
         if b.len() < size_of::<u8>() {
             return Err(OpenRgbError::ProtocolError(
-                "Not enough bytes to read u8".to_string(),
+                "Not enough bytes to read u8".to_owned(),
             ));
         }
         let byte = self.buf[self.idx];
@@ -59,7 +59,7 @@ impl<'a> ReceivedMessage<'a> {
         let b = self.available_buf();
         if b.len() < size_of::<u16>() {
             return Err(OpenRgbError::ProtocolError(
-                "Not enough bytes to read u16".to_string(),
+                "Not enough bytes to read u16".to_owned(),
             ));
         }
         let value = u16::from_le_bytes([b[0], b[1]]);
@@ -71,7 +71,7 @@ impl<'a> ReceivedMessage<'a> {
         let b = self.available_buf();
         if b.len() < size_of::<u32>() {
             return Err(OpenRgbError::ProtocolError(
-                "Not enough bytes to read u32".to_string(),
+                "Not enough bytes to read u32".to_owned(),
             ));
         }
         let value = u32::from_le_bytes([b[0], b[1], b[2], b[3]]);

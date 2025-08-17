@@ -4,7 +4,7 @@ pub use effect::*;
 
 use crate::{DeserFromBuf, ReceivedMessage};
 
-/// Data for OpenRGB plugins.
+/// Data for `OpenRGB` plugins.
 #[derive(Debug)]
 pub struct PluginData {
     /// Plugin name
