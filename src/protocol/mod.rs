@@ -6,7 +6,7 @@ use tokio::net::ToSocketAddrs;
 use tokio::sync::Mutex;
 
 use super::data::{Color, ControllerData, ModeData, RawString, SegmentData};
-use crate::{OpenRgbError, OpenRgbResult, PluginData};
+use crate::{EffectsPluginPacket, OpenRgbError, OpenRgbResult, PluginData, PluginEffect};
 
 /// Default protocol version used by the [`crate::OpenRgbClient::connect`].
 pub const DEFAULT_PROTOCOL: u32 = 5;
@@ -229,8 +229,7 @@ impl OpenRgbProtocol {
     /// Set custom mode.
     ///
     /// See [Open SDK documentation](https://gitlab.com/CalcProgrammer1/OpenRGB/-/wikis/OpenRGB-SDK-Documentation#net_packet_id_rgbcontroller_setcustommode) for more information.
-    #[allow(unused)] // unused on purpose
-    #[allow(clippy::pedantic)]
+    #[expect(unused, reason = "Recommendation from OpenRGB dev is to not use this")] // unused on purpose
     pub async fn set_custom_mode(&self, controller_id: u32) -> OpenRgbResult<()> {
         unimplemented!(
             "Not implemented as per recommendation from OpenRGB devs (https://discord.com/channels/699861463375937578/709998213310054490/1372954035581096158)"
@@ -300,15 +299,26 @@ impl OpenRgbProtocol {
     /// Performs a plugin specific command. Depends on the plugin what this does.
     ///
     /// In this case, the `pkt_dev_idx` (`controller_id`) is used as the Plugin ID.
-    #[allow(unused)] // todo: implement
-    pub async fn plugin_specific_command<I, O>(&self, plugin_id: u32, data: &I) -> OpenRgbResult<O>
+    pub async fn plugin_specific_receive<I, O>(&self, plugin_id: u32, header: u32, data: &I) -> OpenRgbResult<O>
     where
         I: SerToBuf,
         O: DeserFromBuf,
     {
         self.check_protocol_version(4, "Plugin Specific Command")?;
-        self.request(plugin_id, PacketId::PluginSpecific, &data)
-            .await
+        let (recv_header, resp): (u32, O) = self.request(plugin_id, PacketId::PluginSpecific, &(header, data)).await?;
+        if header != recv_header {
+            return Err(OpenRgbError::ProtocolError(format!(
+                "Plugin Specific Command header mismatch: expected {header}, got {recv_header}"
+            )));
+        }
+        Ok(resp)
+    }
+
+    pub async fn plugin_specific_write_packet<I>(&self, plugin_id: u32, header: u32, data: &I) -> OpenRgbResult<()> 
+    where I: SerToBuf
+    {
+        self.check_protocol_version(4, "Plugin Specific Command")?;
+        self.write_packet(plugin_id, PacketId::PluginSpecific, &(header, data)).await
     }
 
     pub async fn add_segment(
@@ -346,6 +356,33 @@ impl OpenRgbProtocol {
             });
         }
         Ok(())
+    }
+
+    /* EFFECTS PLUGIN */
+
+    pub async fn effect_plugin_get_effects(&self, effects_plugin_id: u32) -> OpenRgbResult<Vec<PluginEffect>> {
+        let (_data_size, list): (u32, Vec<_>) = self.plugin_specific_receive(
+            effects_plugin_id,
+            EffectsPluginPacket::RequestEffectList.into(),
+            &(),
+        ).await?;
+        Ok(list)
+    }
+
+    pub async fn effect_plugin_start_effect(&self, effect_plugin_id: u32, effect_name: &str) -> OpenRgbResult<()> {
+        self.plugin_specific_write_packet(
+            effect_plugin_id,
+            EffectsPluginPacket::StartEffect.into(),
+            &effect_name
+        ).await
+    }
+
+    pub async fn effect_plugin_stop_effect(&self, effect_plugin_id: u32, effect_name: &str) -> OpenRgbResult<()> {
+        self.plugin_specific_write_packet(
+            effect_plugin_id,
+            EffectsPluginPacket::StopEffect.into(),
+            &effect_name
+        ).await
     }
 }
 
@@ -539,6 +576,25 @@ mod tests {
         let client = OpenRgbProtocol::connect_to(DEFAULT_ADDR, DEFAULT_PROTOCOL).await?;
         client.update_leds(1, &[Color::new(255, 0, 0); 20]).await?;
         // client.update_led(4, 0, &Color::new(255, 0, 0)).await?;
+        Ok(())
+    }
+
+
+    #[tokio::test]
+    #[traced_test]
+    #[ignore = "can only test with openrgb running"]
+    async fn test_effects_plugin() -> OpenRgbResult<()> {
+        let client = OpenRgbProtocol::connect_to(DEFAULT_ADDR, DEFAULT_PROTOCOL).await?;
+        let plugins = client.get_plugins().await?;
+        println!("plugins: {0:?}", plugins);
+
+        // let effects = client.effect_plugin_get_effects(0).await?;
+        // println!("effects: {0:?}", effects);
+
+        // client.effect_plugin_stop_effect(0, effects[0].name()).await?;
+        // tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        // client.effect_plugin_start_effect(0, effects[0].name()).await?;
+
         Ok(())
     }
 }
