@@ -229,8 +229,7 @@ impl OpenRgbProtocol {
     /// Set custom mode.
     ///
     /// See [Open SDK documentation](https://gitlab.com/CalcProgrammer1/OpenRGB/-/wikis/OpenRGB-SDK-Documentation#net_packet_id_rgbcontroller_setcustommode) for more information.
-    #[allow(unused)] // unused on purpose
-    #[allow(clippy::pedantic)]
+    #[expect(unused, reason = "Recommendation from OpenRGB dev is to not use this")] // unused on purpose
     pub async fn set_custom_mode(&self, controller_id: u32) -> OpenRgbResult<()> {
         unimplemented!(
             "Not implemented as per recommendation from OpenRGB devs (https://discord.com/channels/699861463375937578/709998213310054490/1372954035581096158)"
@@ -362,11 +361,12 @@ impl OpenRgbProtocol {
     /* EFFECTS PLUGIN */
 
     pub async fn effect_plugin_get_effects(&self, effects_plugin_id: u32) -> OpenRgbResult<Vec<PluginEffect>> {
-        self.plugin_specific_receive(
+        let (_data_size, list): (u32, Vec<_>) = self.plugin_specific_receive(
             effects_plugin_id,
             EffectsPluginPacket::RequestEffectList.into(),
             &(),
-        ).await
+        ).await?;
+        Ok(list)
     }
 
     pub async fn effect_plugin_start_effect(&self, effect_plugin_id: u32, effect_name: &str) -> OpenRgbResult<()> {
@@ -588,10 +588,10 @@ mod tests {
         let plugins = client.get_plugins().await?;
         println!("plugins: {0:?}", plugins);
 
-        let effects = client.effect_plugin_get_effects(0).await?;
-        println!("effects: {0:?}", effects);
+        // let effects = client.effect_plugin_get_effects(0).await?;
+        // println!("effects: {0:?}", effects);
 
-        client.effect_plugin_stop_effect(0, effects[0].name()).await?;
+        // client.effect_plugin_stop_effect(0, effects[0].name()).await?;
         // tokio::time::sleep(std::time::Duration::from_secs(2)).await;
         // client.effect_plugin_start_effect(0, effects[0].name()).await?;
 

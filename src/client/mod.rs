@@ -5,6 +5,7 @@ mod controller;
 mod group;
 mod segment;
 mod zone;
+mod plugin;
 
 pub use {command::*, controller::*, group::*, segment::*, zone::*};
 
