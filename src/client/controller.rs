@@ -10,7 +10,7 @@ use crate::{
 
 use super::Zone;
 
-/// An RGBController, which represents a single RGB device that can be controlled.
+/// An `RGBController`, which represents a single RGB device that can be controlled.
 ///
 /// # Example
 /// todo
@@ -73,7 +73,7 @@ impl Controller {
             /// [`Self::set_controllable_mode()`] will set the controller to the mode named "direct"
             pub fn modes(&self) -> &[ModeData];
             /// Returns the LEDs in this controller
-            #[allow(unused)]
+            #[expect(unused, reason = "Api not finalised yet")]
             pub(crate) fn leds(&self) -> &[Led];
             pub(crate) fn zones(&self) -> &[ZoneData];
             pub(crate) fn active_mode(&self) -> Option<&ModeData>;
@@ -83,7 +83,6 @@ impl Controller {
     /// Initialises a controller by setting it to a controllable mode.
     /// This function also changes the LEDs to a rainbow, so you can see if it worked.
     pub async fn init(&self) -> OpenRgbResult<()> {
-        self.set_controllable_mode().await?;
         const RAINBOW_COLORS: [Color; 7] = [
             Color::new(255, 0, 0),   // Red
             Color::new(255, 127, 0), // Orange
@@ -93,6 +92,7 @@ impl Controller {
             Color::new(75, 0, 130),  // Indigo
             Color::new(148, 0, 211), // Violet
         ];
+        self.set_controllable_mode().await?;
         let colors = (0..self.num_leds())
             .map(|i| i * RAINBOW_COLORS.len() / self.num_leds())
             .map(|i| RAINBOW_COLORS[i]);
@@ -103,14 +103,16 @@ impl Controller {
     /// Sets this controller to a controllable mode.
     pub async fn set_controllable_mode(&self) -> OpenRgbResult<()> {
         // order: "direct", "custom", "static"
-        let mode = self
+        let mut mode = self
             .get_mode_if_contains("direct")
-            .or(self.get_mode_if_contains("custom"))
-            .or(self.get_mode_if_contains("static"))
-            .ok_or(OpenRgbError::ProtocolError(
-                "No controllable mode found".to_string(),
-            ))?
+            .or_else(|| self.get_mode_if_contains("custom"))
+            .or_else(|| self.get_mode_if_contains("static"))
+            .ok_or_else(|| OpenRgbError::ProtocolError("No controllable mode found".to_owned()))?
             .clone();
+
+        if let Some(m) = mode.brightness() {
+            mode.set_brightness(mode.brightness_max().unwrap_or(m));
+        }
 
         tracing::debug!("Setting {} to {} mode", self.name(), mode.name());
 
@@ -127,20 +129,16 @@ impl Controller {
     }
 
     /// Returns the zone with the given `zone_id`.
-    pub fn get_zone<'a>(&'a self, zone_id: usize) -> OpenRgbResult<Zone<'a>> {
-        let zone_data = self
-            .zones()
-            .get(zone_id)
-            .ok_or(OpenRgbError::CommandError(format!(
-                "Zone {zone_id} not found for {}",
-                self.name()
-            )))?;
+    pub fn get_zone(&self, zone_id: usize) -> OpenRgbResult<Zone<'_>> {
+        let zone_data = self.zones().get(zone_id).ok_or_else(|| {
+            OpenRgbError::CommandError(format!("Zone {zone_id} not found for {}", self.name()))
+        })?;
         let zone = Zone::new(self, zone_data);
         Ok(zone)
     }
 
     /// Returns an iterator over all available zones in this controller.
-    pub fn get_all_zones<'a>(&'a self) -> impl Iterator<Item = Zone<'a>> {
+    pub fn get_all_zones(&self) -> impl Iterator<Item = Zone<'_>> {
         self.zones().iter().map(|z| Zone::new(self, z))
     }
 

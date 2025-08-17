@@ -45,7 +45,7 @@ flags! {
     }
 }
 
-/// Direction for [ModeData].
+/// Direction for [`ModeData`].
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Default)]
 pub enum Direction {
     /// Left direction.
@@ -113,26 +113,26 @@ pub struct ModeData {
     /// Mode flags set.
     flags: FlagSet<ModeFlag>,
 
-    /// Mode minimum speed (if mode has [ModeFlag::HasSpeed] flag).
+    /// Mode minimum speed (if mode has [`ModeFlag::HasSpeed`] flag).
     speed_min: u32,
 
-    /// Mode maximum speed (if mode has [ModeFlag::HasSpeed] flag).
+    /// Mode maximum speed (if mode has [`ModeFlag::HasSpeed`] flag).
     speed_max: u32,
 
-    /// Mode maximum speed (if mode has [ModeFlag::HasSpeed] flag).
+    /// Mode maximum speed (if mode has [`ModeFlag::HasSpeed`] flag).
     speed: u32,
 
-    /// Mode minimum brightness (if mode has [ModeFlag::HasBrightness] flag).
+    /// Mode minimum brightness (if mode has [`ModeFlag::HasBrightness`] flag).
     ///
     /// Minimum protocol version: 3
     brightness_min: ProtocolOption<3, u32>,
 
-    /// Mode maximum brightness (if mode has [ModeFlag::HasBrightness] flag).
+    /// Mode maximum brightness (if mode has [`ModeFlag::HasBrightness`] flag).
     ///
     /// Minimum protocol version: 3
     brightness_max: ProtocolOption<3, u32>,
 
-    /// Mode brightness (if mode has [ModeFlag::HasBrightness] flag).
+    /// Mode brightness (if mode has [`ModeFlag::HasBrightness`] flag).
     ///
     /// Minimum protocol version: 3
     brightness: ProtocolOption<3, u32>,
@@ -143,10 +143,10 @@ pub struct ModeData {
     /// Mode colors.
     colors: Vec<Color>,
 
-    /// Mode minimum colors (if mode has non empty [ModeData::colors] list).
+    /// Mode minimum colors (if mode has non empty [`ModeData::colors`] list).
     colors_min: u32,
 
-    /// Mode minimum colors (if mode has non empty [ModeData::colors] list).
+    /// Mode minimum colors (if mode has non empty [`ModeData::colors`] list).
     colors_max: u32,
 
     /// Mode direction.
@@ -477,7 +477,7 @@ mod tests {
     fn test_write_001() -> Result<(), Box<dyn Error>> {
         let mode = ModeData {
             id: u32::MAX,
-            name: "test".to_string(),
+            name: "test".to_owned(),
             value: 46,
             flags: HasDirection | HasSpeed | HasBrightness,
             speed_min: 10,

@@ -74,12 +74,9 @@ impl<'a> CommandGroup<'a> {
         controller_id: impl ControllerIndex,
     ) -> OpenRgbResult<&mut Command<'a>> {
         let c = self.group.get_controller(controller_id)?;
-        self.commands
-            .get_mut(&c.id())
-            .ok_or(OpenRgbError::CommandError(format!(
-                "Controller with id {} not found in group",
-                c.id()
-            )))
+        self.commands.get_mut(&c.id()).ok_or_else(|| {
+            OpenRgbError::CommandError(format!("Controller with id {} not found in group", c.id()))
+        })
     }
 
     /// Add a command to update a single LED in a controller.

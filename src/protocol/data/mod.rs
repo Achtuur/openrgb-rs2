@@ -1,4 +1,4 @@
-//! OpenRGB data types.
+//! `OpenRGB` data types.
 //!
 //! See [OpenRGB SDK documentation](https://gitlab.com/CalcProgrammer1/OpenRGB/-/wikis/OpenRGB-SDK-Documentation) for more information.
 

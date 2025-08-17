@@ -89,7 +89,7 @@ impl ControllerData {
         &self.name
     }
 
-    #[allow(unused)]
+    #[allow(unused, reason = "might be useful later")]
     pub fn id(&self) -> u32 {
         self.id
     }
@@ -157,13 +157,13 @@ impl ControllerData {
     }
 
     /// Returns the alternate names for LEDs, only supported in protocol version 5 and above.
-    #[allow(unused)]
+    #[allow(unused, reason = "api not finalised yet")]
     pub fn led_alt_names(&self) -> Option<&[String]> {
         self.led_alt_names.value().map(|v| v.as_slice())
     }
 
     /// Returns the flags for this controller. Only supported in protocol version 5 and above.
-    #[allow(unused)]
+    #[allow(unused, reason = "flags might be used later")]
     pub fn flags(&self) -> Option<FlagSet<ControllerFlags>> {
         self.flags.value().copied()
     }
@@ -268,12 +268,12 @@ mod tests {
         let mut msg = buf.to_received_msg();
         let c_data = msg.read_value::<ControllerData>()?;
 
-        assert_eq!(c_data.name, "Thermaltake Riing".to_string());
-        assert_eq!(c_data.vendor, "Thermaltake".to_string());
-        assert_eq!(c_data.description, "Thermaltake Riing Device".to_string());
-        assert_eq!(c_data.version, "".to_string());
-        assert_eq!(c_data.serial, "".to_string());
-        assert_eq!(c_data.location, "HID: /dev/hidraw10".to_string());
+        assert_eq!(c_data.name, "Thermaltake Riing".to_owned());
+        assert_eq!(c_data.vendor, "Thermaltake".to_owned());
+        assert_eq!(c_data.description, "Thermaltake Riing Device".to_owned());
+        assert_eq!(c_data.version, String::new());
+        assert_eq!(c_data.serial, String::new());
+        assert_eq!(c_data.location, "HID: /dev/hidraw10".to_owned());
         assert_eq!(c_data.active_mode, 0);
         assert_eq!(c_data.modes.len(), 8);
         assert_eq!(c_data.zones.len(), 5);

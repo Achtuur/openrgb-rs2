@@ -6,7 +6,7 @@ impl<T: SerToBuf> SerToBuf for &[T] {
             crate::OpenRgbError::ProtocolError(format!("Slice is too large to encode: {e}"))
         })?;
         buf.write_u16(len);
-        for item in self.iter() {
+        for item in *self {
             item.serialize(buf)?;
         }
         Ok(())

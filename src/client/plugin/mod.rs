@@ -1,17 +1,17 @@
 pub enum OpenRgbPlugin {
     // https://openrgb.org/plugin_effects.html
     Effects,
-    /// https://openrgb.org/plugin_visual_map.html
+    /// <https://openrgb.org/plugin_visual_map.html>
     VisualMap,
-    /// https://openrgb.org/plugin_hardware_sync.html
+    /// <https://openrgb.org/plugin_hardware_sync.html>
     HardwareSync,
-    /// https://openrgb.org/plugin_fan_sync.html
+    /// <https://openrgb.org/plugin_fan_sync.html>
     FanSync,
-    /// https://openrgb.org/plugin_e131_receiver.html
+    /// <https://openrgb.org/plugin_e131_receiver.html>
     E131Receiver,
-    /// https://openrgb.org/plugin_scheduler.html
+    /// <https://openrgb.org/plugin_scheduler.html>
     Scheduler,
-    /// Third party plugin that is not on the OpenRGB page.
+    /// Third party plugin that is not on the `OpenRGB` page.
     ///
     /// Argument is the plugin name.
     Unknown(String),

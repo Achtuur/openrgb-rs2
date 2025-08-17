@@ -1,11 +1,11 @@
-//! Wrapper around the OpenRGB client to make it friendlier to use.
+//! Wrapper around the `OpenRGB` client to make it friendlier to use.
 
 mod command;
 mod controller;
 mod group;
+mod plugin;
 mod segment;
 mod zone;
-mod plugin;
 
 pub use {command::*, controller::*, group::*, segment::*, zone::*};
 
@@ -105,12 +105,9 @@ impl OpenRgbClient {
         device_type: DeviceType,
     ) -> OpenRgbResult<ControllerGroup> {
         let group = self.get_all_controllers().await?;
-        group
-            .split_per_type()
-            .remove(&device_type)
-            .ok_or(OpenRgbError::CommandError(format!(
-                "No controllers of type {device_type:?} found"
-            )))
+        group.split_per_type().remove(&device_type).ok_or_else(|| {
+            OpenRgbError::CommandError(format!("No controllers of type {device_type:?} found"))
+        })
     }
 
     /// Gets a controller by its index.
