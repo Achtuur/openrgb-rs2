@@ -3,6 +3,11 @@
 ## 0.3.0 (future)
 
 - Breaking: change `Segment::segment_id() -> Segment::id()`
+- Breaking: change `Zone::get_all_segments() -> Zone::segment_iter()`
+- Added LED API
+- Added plugin API
+  - Added OpenRGBEffects plugin support
+- Added more lints
 
 ## 0.2.1
 

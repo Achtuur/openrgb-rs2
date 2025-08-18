@@ -50,7 +50,7 @@ impl ControllerIndex for Controller {
 }
 
 /// A group of controllers, this is used to manage multiple controllers at once.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ControllerGroup {
     controllers: Vec<Controller>,
 }

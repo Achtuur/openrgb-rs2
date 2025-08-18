@@ -2,7 +2,7 @@ use flagset::{FlagSet, flags};
 
 use crate::OpenRgbResult;
 use crate::data::ProtocolOption;
-use crate::protocol::data::{Color, DeviceType, Led, ModeData, ZoneData};
+use crate::protocol::data::{Color, DeviceType, LedData, ModeData, ZoneData};
 use crate::protocol::{DeserFromBuf, ReceivedMessage};
 
 flags! {
@@ -60,7 +60,7 @@ pub(crate) struct ControllerData {
     zones: Vec<ZoneData>,
 
     /// Controller LEDs.
-    leds: Vec<Led>,
+    leds: Vec<LedData>,
 
     /// Controller colors.
     colors: Vec<Color>,
@@ -140,7 +140,7 @@ impl ControllerData {
     }
 
     /// Returns the LEDs of this controller.
-    pub fn leds(&self) -> &[Led] {
+    pub fn leds(&self) -> &[LedData] {
         &self.leds
     }
 

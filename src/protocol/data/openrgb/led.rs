@@ -3,7 +3,7 @@ use crate::protocol::{DeserFromBuf, ReceivedMessage};
 
 /// A single LED.
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct Led {
+pub struct LedData {
     /// LED name.
     name: String,
 
@@ -13,15 +13,27 @@ pub struct Led {
     value: u32,
 }
 
-impl DeserFromBuf for Led {
+impl DeserFromBuf for LedData {
     fn deserialize(buf: &mut ReceivedMessage<'_>) -> OpenRgbResult<Self>
     where
         Self: Sized,
     {
-        Ok(Led {
+        Ok(LedData {
             name: buf.read_value()?,
             value: buf.read_value()?,
         })
+    }
+}
+
+impl LedData {
+    /// Returns the name of the LED.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Returns the value of the LED.
+    pub fn value(&self) -> u32 {
+        self.value
     }
 }
 

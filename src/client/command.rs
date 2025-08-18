@@ -185,6 +185,10 @@ impl<'a> Command<'a> {
     }
 
     /// Adds a command to update a single LED in this controller.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the `led_id` is out of bounds for this controller.
     pub fn set_led<C: Into<Color>>(&mut self, led_id: usize, color: C) -> OpenRgbResult<()> {
         self.add_command(SetLedCommand::Single {
             led_id,
@@ -193,6 +197,10 @@ impl<'a> Command<'a> {
     }
 
     /// Adds a command to update multiple LEDs in this controller.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `colors` contains more colors than there are leds
     pub fn set_leds<C: Into<Color>>(
         &mut self,
         colors: impl IntoIterator<Item = C>,
@@ -203,6 +211,10 @@ impl<'a> Command<'a> {
     }
 
     /// Adds a command to update a single LED in a zone in this controller.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `zone_id` and `led_idx` are out of bounds for this controller.
     pub fn set_zone_led<C: Into<Color>>(
         &mut self,
         zone_id: usize,
@@ -216,6 +228,10 @@ impl<'a> Command<'a> {
     }
 
     /// Adds a command to update multiple LEDs in a zone in this controller.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `zone_id` is out of bounds or `colors` contains more colors than there are in this zone.
     pub fn set_zone_leds<C: Into<Color>>(
         &mut self,
         zone_id: usize,
@@ -262,16 +278,20 @@ impl<'a> Command<'a> {
     }
 
     /// Adds an `UpdateCommand` to this command.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the index of `cmd` is out of bounds for the colors of this controller.
     fn add_command(&mut self, cmd: SetLedCommand) -> OpenRgbResult<()> {
         match cmd {
             SetLedCommand::Controller { colors } => {
                 if colors.len() > self.controller.num_leds() {
-                    tracing::warn!(
-                        "Controller {} was given {} colors, while its length is {}. This might become a hard error in the future.",
+                    return Err(OpenRgbError::CommandError(format!(
+                        "Controller {} was given {} colors, while its length is {}",
                         self.controller.name(),
                         colors.len(),
                         self.controller.num_leds()
-                    )
+                    )));
                 }
 
                 self.set_colors(0, &colors)?;
@@ -279,13 +299,13 @@ impl<'a> Command<'a> {
             SetLedCommand::Zone { zone_id, colors } => {
                 let zone = self.controller.get_zone(zone_id)?;
                 if colors.len() >= zone.num_leds() {
-                    tracing::warn!(
+                    return Err(OpenRgbError::CommandError(format!(
                         "Zone {} for controller {} was given {} colors, while its length is {}. This might become a hard error in the future.",
                         zone_id,
                         self.controller.name(),
                         colors.len(),
                         zone.num_leds()
-                    )
+                    )));
                 }
 
                 let offset = self.controller.get_zone_led_offset(zone_id)?;
@@ -300,14 +320,14 @@ impl<'a> Command<'a> {
                 let zone = self.controller.get_zone(zone_id)?;
                 let seg = zone.get_segment(segment_id)?;
                 if colors.len() >= seg.num_leds() {
-                    tracing::warn!(
+                    return Err(OpenRgbError::CommandError(format!(
                         "Segment {} for zone {} in controller {} was given {} colors, while its length is {}. This might become a hard error in the future.",
                         seg.name(),
                         zone_id,
                         self.controller.name(),
                         colors.len(),
                         seg.num_leds()
-                    )
+                    )));
                 }
 
                 let offset = zone.offset() + seg.offset();
@@ -315,12 +335,12 @@ impl<'a> Command<'a> {
             }
             SetLedCommand::Single { led_id, color } => {
                 if led_id >= self.controller.num_leds() {
-                    tracing::warn!(
+                    return Err(OpenRgbError::CommandError(format!(
                         "LED id {} is out of bounds for controller {} with {} LEDs",
                         led_id,
                         self.controller.name(),
                         self.controller.num_leds()
-                    );
+                    )));
                 }
                 self.set_colors(led_id, &[color])?;
             }
@@ -331,6 +351,15 @@ impl<'a> Command<'a> {
     /// This is only called internally, so it is safe to assume that the colors are properly bounded
     fn set_colors(&mut self, offset: usize, colors: &[Color]) -> OpenRgbResult<()> {
         let len = offset + colors.len();
+        if self.controller.colors().len() < len {
+            return Err(OpenRgbError::CommandError(format!(
+                "Cannot set {} colors at offset {}, controller only has {} colors",
+                colors.len(),
+                offset,
+                self.controller.colors().len()
+            )));
+        }
+
         if self.colors.len() < len {
             self.colors.resize(len, Color::default());
         }
