@@ -1,7 +1,11 @@
 use crate::{
-    client::command::Command, data::{ModeData, ModeFlag}, protocol::{
-        data::{Color, ControllerData}, OpenRgbProtocol
-    }, ControllerMode, ControllerModeKind, DeviceType, Led, OpenRgbError, OpenRgbResult, ZoneData
+    ControllerMode, ControllerModeKind, DeviceType, Led, OpenRgbError, OpenRgbResult, ZoneData,
+    client::command::Command,
+    data::{ModeData, ModeFlag},
+    protocol::{
+        OpenRgbProtocol,
+        data::{Color, ControllerData},
+    },
 };
 
 use super::Zone;
@@ -97,21 +101,27 @@ impl Controller {
 
     /// Returns the active mode of this controller.
     pub fn active_mode(&self) -> ControllerMode<'_> {
-        let mode = self.data.active_mode().expect("OpenRGB controller has no active mode. Create an issue for this if you encouter this.");
+        let mode = self.data.active_mode().expect(
+            "OpenRGB controller has no active mode. Create an issue for this if you encouter this.",
+        );
         ControllerMode::new(mode, true)
     }
 
     /// Returns an iterator over all available modes in this controller.
     pub fn mode_iter(&self) -> impl Iterator<Item = ControllerMode<'_>> {
-        let active_mode = self.data.active_mode().expect("OpenRGB controller has no active mode. Create an issue for this if you encouter this.");
-        self.data.modes().iter().map(|m| {
-            ControllerMode::new(m, active_mode.id() == m.id())
-        })
+        let active_mode = self.data.active_mode().expect(
+            "OpenRGB controller has no active mode. Create an issue for this if you encouter this.",
+        );
+        self.data
+            .modes()
+            .iter()
+            .map(|m| ControllerMode::new(m, active_mode.id() == m.id()))
     }
 
     /// Sets this controller to a controllable mode.
     pub async fn set_controllable_mode(&self) -> OpenRgbResult<()> {
-        let mode = self.mode_iter()
+        let mode = self
+            .mode_iter()
             .find(|m| m.kind() == ControllerModeKind::Direct)
             .ok_or_else(|| OpenRgbError::ProtocolError("No controllable mode found".to_owned()))?;
 
@@ -121,7 +131,9 @@ impl Controller {
         }
 
         tracing::debug!("Setting {} to {} mode", self.name(), mode.name());
-        self.proto.update_mode(self.id as u32, mode.into_data()).await?;
+        self.proto
+            .update_mode(self.id as u32, mode.into_data())
+            .await?;
         Ok(())
     }
 
@@ -264,7 +276,9 @@ impl Controller {
                 active_mode.name()
             )));
         }
-        self.proto.save_mode(self.id as u32, active_mode.into_data()).await
+        self.proto
+            .save_mode(self.id as u32, active_mode.into_data())
+            .await
     }
 
     /// Clears all segments of this controller.

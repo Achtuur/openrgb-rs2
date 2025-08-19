@@ -3,10 +3,10 @@
 mod command;
 mod controller;
 mod group;
+mod mode;
 mod plugin;
 mod segment;
 mod zone;
-mod mode;
 
 pub use {command::*, controller::*, group::*, mode::*, segment::*, zone::*};
 

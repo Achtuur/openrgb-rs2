@@ -119,13 +119,14 @@ impl ControllerModeBuilder<'_> {
     pub fn set_speed(&mut self, speed: u32) -> OpenRgbResult<&mut Self> {
         if !self.data.flags().contains(ModeFlag::HasSpeed) {
             return Err(OpenRgbError::CommandError(
-                "Mode does not support speed".to_string(),
+                "Mode does not support speed".to_owned(),
             ));
         }
 
-        let (Some(speed_min), Some(speed_max)) = (self.data.speed_min(), self.data.speed_max()) else {
+        let (Some(speed_min), Some(speed_max)) = (self.data.speed_min(), self.data.speed_max())
+        else {
             return Err(OpenRgbError::CommandError(
-                "Mode does not support speed".to_string(),
+                "Mode does not support speed".to_owned(),
             ));
         };
 
@@ -148,13 +149,13 @@ impl ControllerModeBuilder<'_> {
         match self.data.speed_min() {
             Some(max_speed) => self.set_speed(max_speed),
             None => Err(OpenRgbError::CommandError(
-                "Mode does not support speed".to_string(),
+                "Mode does not support speed".to_owned(),
             )),
         }
     }
 
     /// Sets the speed of this mode to the maximum speed.
-    /// 
+    ///
     /// # Errors
     ///
     /// Returns an error if this mode does not support speed.
@@ -162,7 +163,7 @@ impl ControllerModeBuilder<'_> {
         match self.data.speed_max() {
             Some(max_speed) => self.set_speed(max_speed),
             None => Err(OpenRgbError::CommandError(
-                "Mode does not support speed".to_string(),
+                "Mode does not support speed".to_owned(),
             )),
         }
     }
@@ -175,13 +176,15 @@ impl ControllerModeBuilder<'_> {
     pub fn set_brightness(&mut self, brightness: u32) -> OpenRgbResult<&mut Self> {
         if !self.data.flags().contains(ModeFlag::HasBrightness) {
             return Err(OpenRgbError::CommandError(
-                "Mode does not support brightness".to_string(),
+                "Mode does not support brightness".to_owned(),
             ));
         }
 
-        let (Some(brightness_min), Some(brightness_max)) = (self.data.brightness_min(), self.data.brightness_max()) else {
+        let (Some(brightness_min), Some(brightness_max)) =
+            (self.data.brightness_min(), self.data.brightness_max())
+        else {
             return Err(OpenRgbError::CommandError(
-                "Mode does not support brightness".to_string(),
+                "Mode does not support brightness".to_owned(),
             ));
         };
 
@@ -204,7 +207,7 @@ impl ControllerModeBuilder<'_> {
         match self.data.brightness_max() {
             Some(max_brightness) => self.set_brightness(max_brightness),
             None => Err(OpenRgbError::CommandError(
-                "Mode does not support brightness".to_string(),
+                "Mode does not support brightness".to_owned(),
             )),
         }
     }
@@ -218,7 +221,7 @@ impl ControllerModeBuilder<'_> {
         match self.data.brightness_min() {
             Some(min_brightness) => self.set_brightness(min_brightness),
             None => Err(OpenRgbError::CommandError(
-                "Mode does not support brightness".to_string(),
+                "Mode does not support brightness".to_owned(),
             )),
         }
     }
@@ -231,7 +234,7 @@ impl ControllerModeBuilder<'_> {
     pub fn set_direction(&mut self, dir: Direction) -> OpenRgbResult<&mut Self> {
         if !self.data.flags().contains(ModeFlag::HasDirection) {
             return Err(OpenRgbError::CommandError(
-                "Mode does not support direction".to_string(),
+                "Mode does not support direction".to_owned(),
             ));
         }
 
