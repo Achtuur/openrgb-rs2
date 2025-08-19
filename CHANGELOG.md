@@ -3,6 +3,7 @@
 ## 0.3.0 (future)
 
 - Breaking: change `Segment::segment_id() -> Segment::id()`
+- Add `ControllerMode` and `ControllerModeBuilder` and methods to access those
 
 ## 0.2.1
 

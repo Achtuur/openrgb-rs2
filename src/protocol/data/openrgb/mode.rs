@@ -119,7 +119,7 @@ pub struct ModeData {
     /// Mode maximum speed (if mode has [`ModeFlag::HasSpeed`] flag).
     speed_max: u32,
 
-    /// Mode maximum speed (if mode has [`ModeFlag::HasSpeed`] flag).
+    /// Mode current speed (if mode has [`ModeFlag::HasSpeed`] flag).
     speed: u32,
 
     /// Mode minimum brightness (if mode has [`ModeFlag::HasBrightness`] flag).
@@ -254,6 +254,15 @@ impl ModeData {
         self.flags
             .contains(ModeFlag::HasDirection)
             .then_some(self.direction)
+    }
+
+    /// Set the direction of this mode.
+    ///
+    /// If `ModeFlag::HasDirection` is not set, this will not change the direction.
+    pub fn set_direction(&mut self, dir: Direction) {
+        if self.flags.contains(ModeFlag::HasDirection) {
+            self.direction = dir;
+        }
     }
 
     /// Returns the color mode of this mode.
