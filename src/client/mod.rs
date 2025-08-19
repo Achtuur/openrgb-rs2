@@ -6,8 +6,9 @@ mod group;
 mod plugin;
 mod segment;
 mod zone;
+mod mode;
 
-pub use {command::*, controller::*, group::*, segment::*, zone::*};
+pub use {command::*, controller::*, group::*, mode::*, segment::*, zone::*};
 
 use tokio::net::ToSocketAddrs;
 
