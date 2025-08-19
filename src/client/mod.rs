@@ -3,6 +3,7 @@
 mod command;
 mod controller;
 mod group;
+mod mode;
 mod plugin;
 mod segment;
 mod zone;
@@ -13,7 +14,7 @@ pub use {
     controller::*,
     group::*,
     led::*,
-    segment::*,
+    mode::*, segment::*,
     zone::*
 };
 

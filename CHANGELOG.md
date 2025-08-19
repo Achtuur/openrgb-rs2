@@ -8,6 +8,7 @@
 - Added plugin API
   - Added OpenRGBEffects plugin support
 - Added more lints
+- Add `ControllerMode` and `ControllerModeBuilder` and methods to access those
 
 ## 0.2.1
 
