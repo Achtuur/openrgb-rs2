@@ -11,14 +11,15 @@ async fn main() -> OpenRgbResult<()> {
         .next()
         .expect("Must have at least one controller");
 
+    controller.init().await?;
     println!("Performing example on {}", controller.name());
     let mut cmd = controller.cmd();
     // Set all LEDs to red
     cmd.set_leds(vec![Color::new(255, 0, 0); controller.num_leds()])?;
-    // First zone to green
+    // First half of first zone to green
     cmd.set_zone_leds(
         0,
-        vec![Color::new(0, 255, 0); controller.get_zone(0)?.num_leds()],
+        vec![Color::new(0, 255, 0); controller.get_zone(0)?.num_leds() / 2],
     )?;
     // First led to blue
     cmd.set_led(0, Color::new(0, 0, 255))?;
