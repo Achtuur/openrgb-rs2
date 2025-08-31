@@ -18,35 +18,16 @@ One caveat is that this project is still young, so some smaller breaking changes
 ### Added
 
 - `ControllerMode` and `ControllerModeBuilder` to access and configure controller modes (#14).
-
-### Changed
-This project uses [semantic versioning](https://semver.org/).
-
-One caveat is that this project is still young, so some smaller breaking changes can be expected between updates, especially in newer API's.
-
-<!--
-  ### Added
-  ### Changed
-  ### Deprecated
-  ### Removed
-  ### Fixed
-  ### Security
- -->
-
-## [0.3.0] - Unreleased
-
-### Added
-
-- `ControllerMode` and `ControllerModeBuilder` to access and configure controller modes (#14).
+- Added `Led` struct and API to access controller LEDs.
+- [internal] Added (basic) plugin API
+  - Added OpenRGBEffects plugin support
+- [internal] Added more lints
 
 ### Changed
 
 - Breaking: changed `Segment::segment_id() -> Segment::id()`
 - Breaking: change `Zone::get_all_segments() -> Zone::segment_iter()`
-- Added LED API
-- Added plugin API
-  - Added OpenRGBEffects plugin support
-- Added more lints
+
 
 ## Fixed
 
@@ -63,13 +44,6 @@ One caveat is that this project is still young, so some smaller breaking changes
 - Use `Into<Color>` for methods that used to take a `Color`
 - Remove `async_trait` dependency
 
-## Removed
-
-## [0.2.0]
-
-### Changed
-## Removed
-
 ## [0.2.0]
 
 ### Changed
@@ -81,9 +55,6 @@ One caveat is that this project is still young, so some smaller breaking changes
 
 ### Fixed
 
-
-### Fixed
-
 - Fix some broken links in docs
 
 ## [0.1.0]
@@ -91,6 +62,7 @@ One caveat is that this project is still young, so some smaller breaking changes
 ### Changed
 
 - Changed the way parsing works. In short, the entire message is read to a buffer and then parsed, as opposed to being read byte-by-byte from stream.
+
 ## [0.1.0]
 
 ### Changed
