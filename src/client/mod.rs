@@ -21,10 +21,7 @@ pub use {
 use tokio::net::ToSocketAddrs;
 
 use crate::{
-    DEFAULT_PROTOCOL, OpenRgbError, PluginData,
-    data::DeviceType,
-    error::OpenRgbResult,
-    protocol::{DEFAULT_ADDR, OpenRgbProtocol},
+    client::plugin::OpenRgbPlugin, data::DeviceType, error::OpenRgbResult, protocol::{OpenRgbProtocol, DEFAULT_ADDR}, OpenRgbError, DEFAULT_PROTOCOL
 };
 
 /// Client for the `OpenRGB` SDK server that provides methods to interact with `OpenRGB`.
@@ -169,13 +166,15 @@ impl OpenRgbClient {
         self.proto.get_controller_count().await
     }
 
-    /// Returns a list of available plugins installed on `OpenRGB`.
-    pub async fn get_plugins(&self) -> OpenRgbResult<Vec<PluginData>> {
-        self.proto.get_plugins().await
-    }
-
     /// Forces the `OpenRGB` instance to rescan for devices.
     pub async fn rescan_devices(&self) -> OpenRgbResult<()> {
         self.proto.rescan_devices().await
+    }
+
+    /// Returns a list of available plugins installed on `OpenRGB`.
+    pub async fn get_plugins(&self) -> OpenRgbResult<Vec<OpenRgbPlugin>> {
+        let plugins_raw = self.proto.get_plugins().await?;
+        let plugins = plugins_raw.into_iter().map(OpenRgbPlugin::from).collect();
+        Ok(plugins)
     }
 }

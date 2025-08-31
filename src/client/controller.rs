@@ -81,6 +81,7 @@ impl Controller {
             // #[expect(unused, reason = "Api not finalised yet")]
             // pub(crate) fn leds(&self) -> &[LedData];
             pub(crate) fn zones(&self) -> &[ZoneData];
+
             #[call(leds)]
             pub(crate) fn led_data(&self) -> &[LedData];
         }
