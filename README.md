@@ -26,11 +26,9 @@ async fn main() -> OpenRgbResult<()> {
     Ok(())
 }
 ```
-
 # Performance
 
 The OpenRGB SDK provides a few ways to write colors to devices: [per led](https://gitlab.com/CalcProgrammer1/OpenRGB/-/blob/master/Documentation/OpenRGBSDK.md#net_packet_id_rgbcontroller_updateleds), [per zone](https://gitlab.com/CalcProgrammer1/OpenRGB/-/blob/master/Documentation/OpenRGBSDK.md#net_packet_id_rgbcontroller_updatezoneleds), or [all leds (`set_leds`)](https://gitlab.com/CalcProgrammer1/OpenRGB/-/blob/master/Documentation/OpenRGBSDK.md#net_packet_id_rgbcontroller_updateleds). From my testing it seemed that when updating large number of LEDs, `set_leds` is the fastest one. It's inconvenient to update in this way, as some controllers have multiple unrelated zones, such as motherboards, meaninig you have to keep track of the zone offset.
-
 
 ## Command API
 
@@ -103,6 +101,10 @@ async fn main() -> OpenRgbResult<()> {
     Ok(())
 }
 ```
+
+## Syncing controller data
+
+Syncing controller data with the data in OpenRGB requires an additional API call, which could be unnecessary in a lot of cases. Most of the (important) data will not change over a `Controller`s lifetime and usually you just want to write colors as fast as possible. Therefore, I chose to make syncing the controller data a separate method ([`Controller::sync_controller_data`](https://docs.rs/openrgb2/latest/openrgb2/struct.Controller.html#method.sync_controller_data)) instead of being automatically called after any request.
 
 
 # Original `openrgb-rs`
