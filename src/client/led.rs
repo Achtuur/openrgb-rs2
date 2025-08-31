@@ -42,7 +42,7 @@ impl<'c> Led<'c> {
         self.name
     }
 
-    /// Returns color of this LED after the last [`Controller:sync_controller_data()`] call.
+    /// Returns color of this LED after the last [`crate::Controller::sync_controller_data()`] call.
     pub fn color(&self) -> Color {
         self.color
     }
