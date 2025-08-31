@@ -23,14 +23,17 @@ pub(crate) struct PluginEffect {
 }
 
 impl PluginEffect {
+    #[expect(unused, reason = "Plugin effect api todo")]
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    #[expect(unused, reason = "Plugin effect api todo")]
     pub fn description(&self) -> &str {
         &self.description
     }
 
+    #[expect(unused, reason = "Plugin effect api todo")]
     pub fn enabled(&self) -> bool {
         self.enabled
     }

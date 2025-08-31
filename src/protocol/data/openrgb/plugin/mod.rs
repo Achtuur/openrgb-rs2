@@ -1,5 +1,6 @@
 mod effect;
 
+#[expect(unused_imports, reason = "Plugin effect api todo")]
 pub use effect::*;
 
 use crate::{DeserFromBuf, ReceivedMessage};

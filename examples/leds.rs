@@ -25,10 +25,12 @@ async fn main() -> OpenRgbResult<()> {
 
     // cmd api with iterator
     // you have to manually handle the error
-    let cmd = controller.led_iter().try_fold(controller.cmd(), |mut cmd, l| {
-        cmd.set_led(l.id(), get_color_for_led(l))?;
-        OpenRgbResult::Ok(cmd)
-    })?;
+    let cmd = controller
+        .led_iter()
+        .try_fold(controller.cmd(), |mut cmd, l| {
+            cmd.set_led(l.id(), get_color_for_led(l))?;
+            OpenRgbResult::Ok(cmd)
+        })?;
     cmd.execute().await?;
 
     // previous cmd is equivalent to

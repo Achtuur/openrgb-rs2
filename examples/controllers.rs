@@ -14,4 +14,3 @@ async fn main() -> OpenRgbResult<()> {
 
     Ok(())
 }
-

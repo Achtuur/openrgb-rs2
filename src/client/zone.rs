@@ -1,7 +1,9 @@
 use array2d::Array2D;
 
 use crate::{
-    client::segment::Segment, data::{SegmentData, ZoneData}, Color, Command, Controller, Led, OpenRgbError, OpenRgbResult, ZoneType
+    Color, Command, Controller, Led, OpenRgbError, OpenRgbResult, ZoneType,
+    client::segment::Segment,
+    data::{SegmentData, ZoneData},
 };
 
 /// A zone in a controller, which contains one or more LEDs.
@@ -85,9 +87,10 @@ impl<'c> Zone<'c> {
 
     /// Returns an iterator over the Leds of this zone
     pub fn led_iter(&self) -> impl Iterator<Item = Led<'c>> {
-        self.controller.led_iter()
-        .skip(self.offset())
-        .take(self.num_leds())
+        self.controller
+            .led_iter()
+            .skip(self.offset())
+            .take(self.num_leds())
     }
 
     /// Creates a new [`Command`] for the controller of this zone.
@@ -102,11 +105,13 @@ impl<'c> Zone<'c> {
     /// and sets the LED colors using the provided closure.
     #[must_use]
     pub fn cmd_with_leds<F>(&self, led_clr: F) -> Command<'c>
-    where F: Fn(Led<'c>) -> Color
+    where
+        F: Fn(Led<'c>) -> Color,
     {
         let mut cmd = self.cmd();
         for led in self.led_iter() {
-            cmd.set_led(led.id(), led_clr(led)).expect("Led index incorrect");
+            cmd.set_led(led.id(), led_clr(led))
+                .expect("Led index incorrect");
         }
         cmd
     }

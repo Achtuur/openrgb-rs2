@@ -3,25 +3,22 @@
 mod command;
 mod controller;
 mod group;
+mod led;
 mod mode;
 mod plugin;
 mod segment;
 mod zone;
-mod led;
 
-pub use {
-    command::*,
-    controller::*,
-    group::*,
-    led::*,
-    mode::*, segment::*,
-    zone::*
-};
+pub use {command::*, controller::*, group::*, led::*, mode::*, segment::*, zone::*};
 
 use tokio::net::ToSocketAddrs;
 
 use crate::{
-    client::plugin::OpenRgbPlugin, data::DeviceType, error::OpenRgbResult, protocol::{OpenRgbProtocol, DEFAULT_ADDR}, OpenRgbError, DEFAULT_PROTOCOL
+    DEFAULT_PROTOCOL, OpenRgbError,
+    client::plugin::OpenRgbPlugin,
+    data::DeviceType,
+    error::OpenRgbResult,
+    protocol::{DEFAULT_ADDR, OpenRgbProtocol},
 };
 
 /// Client for the `OpenRGB` SDK server that provides methods to interact with `OpenRGB`.

@@ -374,6 +374,7 @@ impl OpenRgbProtocol {
 
     /* EFFECTS PLUGIN */
 
+    #[expect(unused, reason = "Plugin effect api todo")]
     pub async fn effect_plugin_get_effects(
         &self,
         effects_plugin_id: u32,
@@ -388,6 +389,7 @@ impl OpenRgbProtocol {
         Ok(list)
     }
 
+    #[expect(unused, reason = "Plugin effect api todo")]
     pub async fn effect_plugin_start_effect(
         &self,
         effect_plugin_id: u32,
@@ -401,6 +403,7 @@ impl OpenRgbProtocol {
         .await
     }
 
+    #[expect(unused, reason = "Plugin effect api todo")]
     pub async fn effect_plugin_stop_effect(
         &self,
         effect_plugin_id: u32,

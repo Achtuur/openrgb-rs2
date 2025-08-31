@@ -1,4 +1,4 @@
-use crate::{data::SegmentData, Color, Command, Led, OpenRgbError, OpenRgbResult, Zone};
+use crate::{Color, Command, Led, OpenRgbError, OpenRgbResult, Zone, data::SegmentData};
 
 /// A segment in a zone, which can contain multiple LEDs.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -48,9 +48,10 @@ impl<'c> Segment<'c> {
 
     /// Returns an iterator over the Leds of this segment
     pub fn led_iter(&self) -> impl Iterator<Item = Led<'c>> {
-        self.zone.led_iter()
-        .skip(self.offset())
-        .take(self.num_leds())
+        self.zone
+            .led_iter()
+            .skip(self.offset())
+            .take(self.num_leds())
     }
 
     /// Sets a single LED in this segment to the given `color`.
@@ -131,7 +132,8 @@ impl<'c> Segment<'c> {
     {
         let mut cmd = self.cmd();
         for led in self.led_iter() {
-            cmd.set_led(led.id(), led_cld(led)).expect("Failed to set LED color");
+            cmd.set_led(led.id(), led_cld(led))
+                .expect("Failed to set LED color");
         }
         cmd
     }

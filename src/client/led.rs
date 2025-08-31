@@ -11,8 +11,16 @@ pub struct Led<'c> {
 
 impl<'c> Led<'c> {
     pub(crate) fn new(id: usize, parent: &'c Controller) -> Self {
-        let name = parent.led_data().get(id).map(|ld| ld.name()).expect("Led::new() called with invalid parameters");
-        let color = parent.colors().get(id).copied().expect("Led::new() called with invalid parameters");
+        let name = parent
+            .led_data()
+            .get(id)
+            .map(|ld| ld.name())
+            .expect("Led::new() called with invalid parameters");
+        let color = parent
+            .colors()
+            .get(id)
+            .copied()
+            .expect("Led::new() called with invalid parameters");
         Self {
             id,
             controller: parent,
@@ -42,7 +50,8 @@ impl<'c> Led<'c> {
     /// Creates a command with the given `color`
     pub fn cmd_with_color<C: Into<Color>>(&self, color: C) -> Command<'_> {
         let mut cmd = self.controller.cmd();
-        cmd.set_led(self.id, color.into()).expect("Failed to set LED color");
+        cmd.set_led(self.id, color.into())
+            .expect("Failed to set LED color");
         cmd
     }
 

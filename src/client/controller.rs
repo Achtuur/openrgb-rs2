@@ -1,7 +1,12 @@
 use crate::{
-    client::command::Command, data::{ModeData, ModeFlag}, protocol::{
-        data::{Color, ControllerData}, OpenRgbProtocol
-    }, ControllerMode, ControllerModeKind, DeviceType, Led, LedData, OpenRgbError, OpenRgbResult, ZoneData
+    ControllerMode, ControllerModeKind, DeviceType, Led, LedData, OpenRgbError, OpenRgbResult,
+    ZoneData,
+    client::command::Command,
+    data::{ModeData, ModeFlag},
+    protocol::{
+        OpenRgbProtocol,
+        data::{Color, ControllerData},
+    },
 };
 
 use super::Zone;
@@ -258,12 +263,14 @@ impl Controller {
     /// and sets the LED colors using the provided closure.
     #[must_use]
     pub fn cmd_with_leds<'a, F>(&'a self, led_clr: F) -> Command<'a>
-    where F: Fn(Led<'a>) -> Color
+    where
+        F: Fn(Led<'a>) -> Color,
     {
         let mut cmd = self.cmd();
         for led in self.led_iter() {
             // this cannot fail, since we know the led id will be in bounds
-            cmd.set_led(led.id(), led_clr(led)).expect("Led index incorrect");
+            cmd.set_led(led.id(), led_clr(led))
+                .expect("Led index incorrect");
         }
         cmd
     }
