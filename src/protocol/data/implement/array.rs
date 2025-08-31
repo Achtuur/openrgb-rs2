@@ -15,7 +15,7 @@ impl<T: DeserFromBuf, const N: usize> DeserFromBuf for [T; N] {
     fn deserialize(buf: &mut ReceivedMessage<'_>) -> OpenRgbResult<Self> {
         let mut arr = [const { MaybeUninit::<T>::uninit() }; N];
 
-        for item in arr.iter_mut() {
+        for item in &mut arr {
             let d = T::deserialize(buf)?;
             item.write(d);
         }

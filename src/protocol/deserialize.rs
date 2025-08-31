@@ -27,7 +27,7 @@ impl std::fmt::Display for WriteMessage {
             "WriteMessage (protocol: {}, len: {}): {:?}",
             self.protocol_version,
             self.buf.len(),
-            &self.buf[..]
+            &*self.buf
         )
     }
 }

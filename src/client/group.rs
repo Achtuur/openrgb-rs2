@@ -12,13 +12,12 @@ pub trait ControllerIndex {
     fn controller_id(&self) -> usize;
     /// Returns a reference to the controller with the given index.
     fn index<'a>(&self, group: &'a ControllerGroup) -> OpenRgbResult<&'a Controller> {
-        group
-            .controllers
-            .get(self.controller_id())
-            .ok_or(OpenRgbError::CommandError(format!(
+        group.controllers.get(self.controller_id()).ok_or_else(|| {
+            OpenRgbError::CommandError(format!(
                 "Controller with index {} not found",
                 self.controller_id()
-            )))
+            ))
+        })
     }
     /// Removes the controller with the given index from the group and returns it.
     fn remove(&self, group: &mut ControllerGroup) -> OpenRgbResult<Controller> {
@@ -51,7 +50,7 @@ impl ControllerIndex for Controller {
 }
 
 /// A group of controllers, this is used to manage multiple controllers at once.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ControllerGroup {
     controllers: Vec<Controller>,
 }
@@ -130,15 +129,13 @@ impl ControllerGroup {
         self.controllers
             .into_iter()
             .next()
-            .ok_or(OpenRgbError::CommandError(
-                "No controllers in group".to_string(),
-            ))
+            .ok_or_else(|| OpenRgbError::CommandError("No controllers in group".to_owned()))
     }
 
     /// Creates a new `CommandGroup` for this controller group.
     ///
     /// See `Controller::cmd()` for more information.
-    pub fn cmd(&self) -> CommandGroup {
+    pub fn cmd(&self) -> CommandGroup<'_> {
         CommandGroup::new(self)
     }
 

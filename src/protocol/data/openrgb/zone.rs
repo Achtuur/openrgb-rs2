@@ -73,7 +73,7 @@ pub(crate) struct ZoneData {
     /// Minimum version: 5
     pub flags: ProtocolOption<5, FlagSet<ZoneFlags>>,
 
-    /// Zone LED matrix (if [ZoneData::zone_type] is [ZoneType::Matrix]).
+    /// Zone LED matrix (if [`ZoneData::zone_type`] is [`ZoneType::Matrix`]).
     ///
     /// Matrix is the "position" of the LEDs in the zone relative to the top left corner.
     ///

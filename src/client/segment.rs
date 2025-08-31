@@ -1,13 +1,14 @@
-use crate::{Color, Command, OpenRgbError, OpenRgbResult, Zone, data::SegmentData};
+use crate::{Color, Command, Led, OpenRgbError, OpenRgbResult, Zone, data::SegmentData};
 
 /// A segment in a zone, which can contain multiple LEDs.
-pub struct Segment<'a> {
-    zone: &'a Zone<'a>,
-    segment_data: &'a SegmentData,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Segment<'c> {
+    zone: &'c Zone<'c>,
+    segment_data: &'c SegmentData,
 }
 
-impl<'a> Segment<'a> {
-    pub(crate) fn new(zone: &'a Zone<'a>, segment_data: &'a SegmentData) -> Self {
+impl<'c> Segment<'c> {
+    pub(crate) fn new(zone: &'c Zone<'c>, segment_data: &'c SegmentData) -> Self {
         Self { zone, segment_data }
     }
 
@@ -43,6 +44,14 @@ impl<'a> Segment<'a> {
     /// `Zone.leds[offset()..offset() + num_leds()]` will return the LEDs in this segment.
     pub fn offset(&self) -> usize {
         self.segment_data.offset() as usize
+    }
+
+    /// Returns an iterator over the Leds of this segment
+    pub fn led_iter(&self) -> impl Iterator<Item = Led<'c>> {
+        self.zone
+            .led_iter()
+            .skip(self.offset())
+            .take(self.num_leds())
     }
 
     /// Sets a single LED in this segment to the given `color`.
@@ -111,17 +120,31 @@ impl<'a> Segment<'a> {
 
     /// Creates a new [`Command`] for the controller of this segment's zone.
     #[must_use]
-    pub fn cmd(&'a self) -> Command<'a> {
+    pub fn cmd(&'c self) -> Command<'c> {
         self.zone.cmd()
+    }
+
+    /// Creates a new [`Command`] for the controller of this segment
+    /// and sets the LED colors using the provided closure.
+    pub fn cmd_with_leds<F>(&'c self, led_cld: F) -> Command<'c>
+    where
+        F: Fn(Led<'c>) -> Color,
+    {
+        let mut cmd = self.cmd();
+        for led in self.led_iter() {
+            cmd.set_led(led.id(), led_cld(led))
+                .expect("Failed to set LED color");
+        }
+        cmd
     }
 
     /// Returns a command to update the LEDs for this Zone to `colors`.
     ///
     /// The command must be executed by calling `.execute()`
     pub fn cmd_with_set_leds<C: Into<Color>>(
-        &'a self,
+        &'c self,
         colors: impl IntoIterator<Item = C>,
-    ) -> OpenRgbResult<Command<'a>> {
+    ) -> OpenRgbResult<Command<'c>> {
         let mut cmd = self.cmd();
         cmd.set_segment_leds(self.zone_id(), self.segment_id(), colors)?;
         Ok(cmd)

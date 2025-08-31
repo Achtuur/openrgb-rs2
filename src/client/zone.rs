@@ -1,7 +1,7 @@
 use array2d::Array2D;
 
 use crate::{
-    Color, Command, Controller, OpenRgbError, OpenRgbResult, ZoneType,
+    Color, Command, Controller, Led, OpenRgbError, OpenRgbResult, ZoneType,
     client::segment::Segment,
     data::{SegmentData, ZoneData},
 };
@@ -9,13 +9,14 @@ use crate::{
 /// A zone in a controller, which contains one or more LEDs.
 ///
 /// Zones can also contain segments, which are user-created subdivisions of the zone.
-pub struct Zone<'a> {
-    controller: &'a Controller,
-    zone_data: &'a ZoneData,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Zone<'c> {
+    controller: &'c Controller,
+    zone_data: &'c ZoneData,
 }
 
-impl<'a> Zone<'a> {
-    pub(crate) fn new(controller: &'a Controller, zone_data: &'a ZoneData) -> Self {
+impl<'c> Zone<'c> {
+    pub(crate) fn new(controller: &'c Controller, zone_data: &'c ZoneData) -> Self {
         Self {
             controller,
             zone_data,
@@ -53,34 +54,28 @@ impl<'a> Zone<'a> {
             #[call(leds_count)]
             pub fn num_leds(&self) -> usize;
 
-            pub(crate) fn segments(&self) -> Option<&[SegmentData]>;
-            #[allow(unused)]
-            pub(crate) fn matrix(&self) -> Option<&Array2D<u32>>;
+            #[call(segments)]
+            pub(crate) fn segment_data(&self) -> Option<&[SegmentData]>;
+            #[expect(unused, reason = "Api not finalised yet")]
+            #[call(matrix)]
+            pub(crate) fn matrix_data(&self) -> Option<&Array2D<u32>>;
         }
     }
 
     /// Returns the segment with the given `segment_id`.
-    pub fn get_segment(&'a self, segment_id: usize) -> OpenRgbResult<Segment<'a>> {
-        let Some(segments) = self.segments() else {
+    pub fn get_segment(&'c self, segment_id: usize) -> OpenRgbResult<Segment<'c>> {
+        let Some(segments) = self.segment_data() else {
             return Err(OpenRgbError::CommandError(
-                "Segments not supported in protocol version < 4".to_string(),
+                "Segments not supported in protocol version < 4".to_owned(),
             ));
         };
-        let data = segments
-            .get(segment_id)
-            .ok_or(OpenRgbError::CommandError(format!(
+        let data = segments.get(segment_id).ok_or_else(|| {
+            OpenRgbError::CommandError(format!(
                 "Segment with id {segment_id} not found in zone {}",
                 self.name()
-            )))?;
+            ))
+        })?;
         Ok(Segment::new(self, data))
-    }
-
-    /// Returns an iterator over all segments in this zone.
-    pub fn get_all_segments(&'a self) -> impl Iterator<Item = Segment<'a>> {
-        self.segments()
-            .into_iter()
-            .flatten()
-            .map(move |s| Segment::new(self, s))
     }
 
     /// Returns the offset of this zone in the controller's LED array.
@@ -90,12 +85,35 @@ impl<'a> Zone<'a> {
             .expect("Zone id should be valid")
     }
 
+    /// Returns an iterator over the Leds of this zone
+    pub fn led_iter(&self) -> impl Iterator<Item = Led<'c>> {
+        self.controller
+            .led_iter()
+            .skip(self.offset())
+            .take(self.num_leds())
+    }
+
     /// Creates a new [`Command`] for the controller of this zone.
     ///
     /// The command must be executed by calling `.execute()`
     #[must_use]
-    pub fn cmd(&'a self) -> Command<'a> {
+    pub fn cmd(&self) -> Command<'c> {
         Command::new(self.controller)
+    }
+
+    /// Creates a new [`Command`] for the controller of this zone
+    /// and sets the LED colors using the provided closure.
+    #[must_use]
+    pub fn cmd_with_leds<F>(&self, led_clr: F) -> Command<'c>
+    where
+        F: Fn(Led<'c>) -> Color,
+    {
+        let mut cmd = self.cmd();
+        for led in self.led_iter() {
+            cmd.set_led(led.id(), led_clr(led))
+                .expect("Led index incorrect");
+        }
+        cmd
     }
 
     /// Returns a command to update the LEDs for this Zone to `colors`.
@@ -103,9 +121,9 @@ impl<'a> Zone<'a> {
     ///
     /// The command must be executed by calling `.execute()`
     pub fn cmd_with_set_leds<C: Into<Color>>(
-        &'a self,
+        &'c self,
         colors: impl IntoIterator<Item = C>,
-    ) -> OpenRgbResult<Command<'a>> {
+    ) -> OpenRgbResult<Command<'c>> {
         let mut cmd = self.cmd();
         cmd.set_zone_leds(self.zone_id(), colors)?;
         Ok(cmd)
@@ -187,6 +205,14 @@ impl<'a> Zone<'a> {
     /// Controller data must be resynced using [`Controller::sync_controller_data()`]
     pub async fn clear_segments(&self) -> OpenRgbResult<()> {
         self.controller.clear_segments().await
+    }
+
+    /// Returns an iterator over all segments in this zone.
+    pub fn segment_iter(&'c self) -> impl Iterator<Item = Segment<'c>> {
+        self.segment_data()
+            .into_iter()
+            .flatten()
+            .map(move |s| Segment::new(self, s))
     }
 
     /// Resizes this zone to a new size.

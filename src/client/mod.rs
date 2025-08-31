@@ -1,17 +1,21 @@
-//! Wrapper around the OpenRGB client to make it friendlier to use.
+//! Wrapper around the `OpenRGB` client to make it friendlier to use.
 
 mod command;
 mod controller;
 mod group;
+mod led;
+mod mode;
+mod plugin;
 mod segment;
 mod zone;
 
-pub use {command::*, controller::*, group::*, segment::*, zone::*};
+pub use {command::*, controller::*, group::*, led::*, mode::*, segment::*, zone::*};
 
 use tokio::net::ToSocketAddrs;
 
 use crate::{
-    DEFAULT_PROTOCOL, OpenRgbError, PluginData,
+    DEFAULT_PROTOCOL, OpenRgbError,
+    client::plugin::OpenRgbPlugin,
     data::DeviceType,
     error::OpenRgbResult,
     protocol::{DEFAULT_ADDR, OpenRgbProtocol},
@@ -104,12 +108,9 @@ impl OpenRgbClient {
         device_type: DeviceType,
     ) -> OpenRgbResult<ControllerGroup> {
         let group = self.get_all_controllers().await?;
-        group
-            .split_per_type()
-            .remove(&device_type)
-            .ok_or(OpenRgbError::CommandError(format!(
-                "No controllers of type {device_type:?} found"
-            )))
+        group.split_per_type().remove(&device_type).ok_or_else(|| {
+            OpenRgbError::CommandError(format!("No controllers of type {device_type:?} found"))
+        })
     }
 
     /// Gets a controller by its index.
@@ -162,13 +163,15 @@ impl OpenRgbClient {
         self.proto.get_controller_count().await
     }
 
-    /// Returns a list of available plugins installed on `OpenRGB`.
-    pub async fn get_plugins(&self) -> OpenRgbResult<Vec<PluginData>> {
-        self.proto.get_plugins().await
-    }
-
     /// Forces the `OpenRGB` instance to rescan for devices.
     pub async fn rescan_devices(&self) -> OpenRgbResult<()> {
         self.proto.rescan_devices().await
+    }
+
+    /// Returns a list of available plugins installed on `OpenRGB`.
+    pub async fn get_plugins(&self) -> OpenRgbResult<Vec<OpenRgbPlugin>> {
+        let plugins_raw = self.proto.get_plugins().await?;
+        let plugins = plugins_raw.into_iter().map(OpenRgbPlugin::from).collect();
+        Ok(plugins)
     }
 }

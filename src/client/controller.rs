@@ -1,5 +1,6 @@
 use crate::{
-    DeviceType, Led, OpenRgbError, OpenRgbResult, ZoneData,
+    ControllerMode, ControllerModeKind, DeviceType, Led, LedData, OpenRgbError, OpenRgbResult,
+    ZoneData,
     client::command::Command,
     data::{ModeData, ModeFlag},
     protocol::{
@@ -10,15 +11,24 @@ use crate::{
 
 use super::Zone;
 
-/// An RGBController, which represents a single RGB device that can be controlled.
+/// An `RGBController`, which represents a single RGB device that can be controlled.
 ///
 /// # Example
-/// todo
+///
+/// see `examples/controller.rs` for example usage
 pub struct Controller {
     id: usize,
     proto: OpenRgbProtocol,
     data: ControllerData,
 }
+
+impl PartialEq for Controller {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id && self.data == other.data
+    }
+}
+
+impl Eq for Controller {}
 
 impl std::fmt::Debug for Controller {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -73,17 +83,18 @@ impl Controller {
             /// [`Self::set_controllable_mode()`] will set the controller to the mode named "direct"
             pub fn modes(&self) -> &[ModeData];
             /// Returns the LEDs in this controller
-            #[allow(unused)]
-            pub(crate) fn leds(&self) -> &[Led];
+            // #[expect(unused, reason = "Api not finalised yet")]
+            // pub(crate) fn leds(&self) -> &[LedData];
             pub(crate) fn zones(&self) -> &[ZoneData];
-            pub(crate) fn active_mode(&self) -> Option<&ModeData>;
+
+            #[call(leds)]
+            pub(crate) fn led_data(&self) -> &[LedData];
         }
     }
 
     /// Initialises a controller by setting it to a controllable mode.
     /// This function also changes the LEDs to a rainbow, so you can see if it worked.
     pub async fn init(&self) -> OpenRgbResult<()> {
-        self.set_controllable_mode().await?;
         const RAINBOW_COLORS: [Color; 7] = [
             Color::new(255, 0, 0),   // Red
             Color::new(255, 127, 0), // Orange
@@ -93,6 +104,7 @@ impl Controller {
             Color::new(75, 0, 130),  // Indigo
             Color::new(148, 0, 211), // Violet
         ];
+        self.set_controllable_mode().await?;
         let colors = (0..self.num_leds())
             .map(|i| i * RAINBOW_COLORS.len() / self.num_leds())
             .map(|i| RAINBOW_COLORS[i]);
@@ -100,47 +112,59 @@ impl Controller {
         Ok(())
     }
 
+    /// Returns the active mode of this controller.
+    pub fn active_mode(&self) -> ControllerMode<'_> {
+        let mode = self.data.active_mode().expect(
+            "OpenRGB controller has no active mode. Create an issue for this if you encouter this.",
+        );
+        ControllerMode::new(mode, true)
+    }
+
+    /// Returns an iterator over all available modes in this controller.
+    pub fn mode_iter(&self) -> impl Iterator<Item = ControllerMode<'_>> {
+        let active_mode = self.data.active_mode().expect(
+            "OpenRGB controller has no active mode. Create an issue for this if you encouter this.",
+        );
+        self.data
+            .modes()
+            .iter()
+            .map(|m| ControllerMode::new(m, active_mode.id() == m.id()))
+    }
+
     /// Sets this controller to a controllable mode.
     pub async fn set_controllable_mode(&self) -> OpenRgbResult<()> {
-        // order: "direct", "custom", "static"
         let mode = self
-            .get_mode_if_contains("direct")
-            .or(self.get_mode_if_contains("custom"))
-            .or(self.get_mode_if_contains("static"))
-            .ok_or(OpenRgbError::ProtocolError(
-                "No controllable mode found".to_string(),
-            ))?
-            .clone();
+            .mode_iter()
+            .find(|m| m.kind() == ControllerModeKind::Direct)
+            .ok_or_else(|| OpenRgbError::ProtocolError("No controllable mode found".to_owned()))?;
+
+        // set max brightness if possible
+        if let Ok(b) = mode.builder().set_max_brightness() {
+            b.execute(self).await?;
+        }
 
         tracing::debug!("Setting {} to {} mode", self.name(), mode.name());
-
-        // just do both I guess
-        self.proto.update_mode(self.id as u32, &mode).await?;
-        // self.proto.save_mode(self.id as u32, &mode).await
+        self.proto
+            .update_mode(self.id as u32, mode.into_data())
+            .await?;
         Ok(())
     }
 
-    fn get_mode_if_contains(&self, pat: &str) -> Option<&ModeData> {
-        self.modes()
-            .iter()
-            .find(|m| m.name().to_ascii_lowercase().contains(pat))
+    pub(crate) async fn update_mode(&self, mode: &ModeData) -> OpenRgbResult<()> {
+        self.proto.update_mode(self.id as u32, mode).await
     }
 
     /// Returns the zone with the given `zone_id`.
-    pub fn get_zone<'a>(&'a self, zone_id: usize) -> OpenRgbResult<Zone<'a>> {
-        let zone_data = self
-            .zones()
-            .get(zone_id)
-            .ok_or(OpenRgbError::CommandError(format!(
-                "Zone {zone_id} not found for {}",
-                self.name()
-            )))?;
+    pub fn get_zone(&self, zone_id: usize) -> OpenRgbResult<Zone<'_>> {
+        let zone_data = self.zones().get(zone_id).ok_or_else(|| {
+            OpenRgbError::CommandError(format!("Zone {zone_id} not found for {}", self.name()))
+        })?;
         let zone = Zone::new(self, zone_data);
         Ok(zone)
     }
 
     /// Returns an iterator over all available zones in this controller.
-    pub fn get_all_zones<'a>(&'a self) -> impl Iterator<Item = Zone<'a>> {
+    pub fn get_all_zones(&self) -> impl Iterator<Item = Zone<'_>> {
         self.zones().iter().map(|z| Zone::new(self, z))
     }
 
@@ -188,6 +212,15 @@ impl Controller {
         self.set_all_leds(Color { r: 0, g: 0, b: 0 }).await
     }
 
+    /// Returns an iterator over the Leds of this controller.
+    pub fn led_iter(&self) -> impl Iterator<Item = Led<'_>> {
+        // assumption: controller_data led_data and colors agree
+        self.led_data()
+            .iter()
+            .enumerate()
+            .map(move |(id, _)| Led::new(id, self))
+    }
+
     /// Creates a [`Command`] for this controller.
     ///
     /// Controller LEDs can be updated in three ways:
@@ -215,14 +248,31 @@ impl Controller {
     /// cmd.set_led(4, Color::new(255, 0, 0))?;
     /// cmd.set_led(1, Color::new(255, 0, 0))?;
     /// cmd.set_led(5, Color::new(255, 0, 0))?;
-    /// // this is just a single update
+    /// // this is just a single api call
     /// cmd.execute().await
     /// # }
     /// ```
     ///
     /// This is especially useful for devices with multiple zones that should animate separately.
+    #[must_use]
     pub fn cmd(&self) -> Command<'_> {
         Command::new(self)
+    }
+
+    /// Creates a new [`Command`] for this controller
+    /// and sets the LED colors using the provided closure.
+    #[must_use]
+    pub fn cmd_with_leds<'a, F>(&'a self, led_clr: F) -> Command<'a>
+    where
+        F: Fn(Led<'a>) -> Color,
+    {
+        let mut cmd = self.cmd();
+        for led in self.led_iter() {
+            // this cannot fail, since we know the led id will be in bounds
+            cmd.set_led(led.id(), led_clr(led))
+                .expect("Led index incorrect");
+        }
+        cmd
     }
 
     pub(crate) fn get_zone_led_offset(&self, zone_id: usize) -> OpenRgbResult<usize> {
@@ -257,12 +307,7 @@ impl Controller {
     ///
     /// Using this frequently can cause wear on the flash memory, use this sparingly.
     pub async fn save_mode(&self) -> OpenRgbResult<()> {
-        let Some(active_mode) = self.active_mode() else {
-            return Err(OpenRgbError::CommandError(format!(
-                "Controller {} has no active mode",
-                self.name()
-            )));
-        };
+        let active_mode = self.active_mode();
         if !active_mode.flags().contains(ModeFlag::ManualSave) {
             return Err(OpenRgbError::CommandError(format!(
                 "Controller {} mode {} cannot be saved",
@@ -270,7 +315,9 @@ impl Controller {
                 active_mode.name()
             )));
         }
-        self.proto.save_mode(self.id as u32, active_mode).await
+        self.proto
+            .save_mode(self.id as u32, active_mode.into_data())
+            .await
     }
 
     /// Clears all segments of this controller.

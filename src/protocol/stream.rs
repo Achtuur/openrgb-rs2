@@ -74,7 +74,7 @@ impl OpenRgbMessageHeader {
     }
 }
 
-/// `tokio TcpStream` with an OpenRGB protocol version.
+/// `tokio TcpStream` with an `OpenRGB` protocol version.
 /// The version is tagged to all received and written packets, since packet format depends on protocol version.
 pub(crate) struct ProtocolStream {
     stream: TcpStream,
