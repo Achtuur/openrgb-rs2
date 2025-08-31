@@ -1,3 +1,5 @@
+use crate::PluginData;
+
 pub enum OpenRgbPlugin {
     // https://openrgb.org/plugin_effects.html
     Effects,
@@ -15,6 +17,20 @@ pub enum OpenRgbPlugin {
     ///
     /// Argument is the plugin name.
     Unknown(String),
+}
+
+impl From<PluginData> for OpenRgbPlugin {
+    fn from(value: PluginData) -> Self {
+        match value.name() {
+            "OpenRGB Effects Plugin" => Self::Effects,
+            "Visual Map" => Self::VisualMap,
+            "Hardware Sync" => Self::HardwareSync,
+            "Fan Sync" => Self::FanSync,
+            "E131 Receiver" => Self::E131Receiver,
+            "Scheduler" => Self::Scheduler,
+            name => Self::Unknown(name.to_owned()),
+        }
+    }
 }
 
 impl OpenRgbPlugin {

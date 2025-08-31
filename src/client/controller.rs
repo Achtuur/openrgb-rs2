@@ -1,11 +1,7 @@
 use crate::{
-    ControllerMode, ControllerModeKind, DeviceType, Led, OpenRgbError, OpenRgbResult, ZoneData,
-    client::command::Command,
-    data::{ModeData, ModeFlag},
-    protocol::{
-        OpenRgbProtocol,
-        data::{Color, ControllerData},
-    },
+    client::command::Command, data::{ModeData, ModeFlag}, protocol::{
+        data::{Color, ControllerData}, OpenRgbProtocol
+    }, ControllerMode, ControllerModeKind, DeviceType, Led, LedData, OpenRgbError, OpenRgbResult, ZoneData
 };
 
 use super::Zone;
@@ -13,12 +9,21 @@ use super::Zone;
 /// An `RGBController`, which represents a single RGB device that can be controlled.
 ///
 /// # Example
-/// todo
+///
+/// see `examples/controller.rs` for example usage
 pub struct Controller {
     id: usize,
     proto: OpenRgbProtocol,
     data: ControllerData,
 }
+
+impl PartialEq for Controller {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id && self.data == other.data
+    }
+}
+
+impl Eq for Controller {}
 
 impl std::fmt::Debug for Controller {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -73,9 +78,12 @@ impl Controller {
             /// [`Self::set_controllable_mode()`] will set the controller to the mode named "direct"
             pub fn modes(&self) -> &[ModeData];
             /// Returns the LEDs in this controller
-            #[expect(unused, reason = "Api not finalised yet")]
-            pub(crate) fn leds(&self) -> &[Led];
+            // #[expect(unused, reason = "Api not finalised yet")]
+            // pub(crate) fn leds(&self) -> &[LedData];
             pub(crate) fn zones(&self) -> &[ZoneData];
+
+            #[call(leds)]
+            pub(crate) fn led_data(&self) -> &[LedData];
         }
     }
 
@@ -199,6 +207,15 @@ impl Controller {
         self.set_all_leds(Color { r: 0, g: 0, b: 0 }).await
     }
 
+    /// Returns an iterator over the Leds of this controller.
+    pub fn led_iter(&self) -> impl Iterator<Item = Led<'_>> {
+        // assumption: controller_data led_data and colors agree
+        self.led_data()
+            .iter()
+            .enumerate()
+            .map(move |(id, _)| Led::new(id, self))
+    }
+
     /// Creates a [`Command`] for this controller.
     ///
     /// Controller LEDs can be updated in three ways:
@@ -226,14 +243,29 @@ impl Controller {
     /// cmd.set_led(4, Color::new(255, 0, 0))?;
     /// cmd.set_led(1, Color::new(255, 0, 0))?;
     /// cmd.set_led(5, Color::new(255, 0, 0))?;
-    /// // this is just a single update
+    /// // this is just a single api call
     /// cmd.execute().await
     /// # }
     /// ```
     ///
     /// This is especially useful for devices with multiple zones that should animate separately.
+    #[must_use]
     pub fn cmd(&self) -> Command<'_> {
         Command::new(self)
+    }
+
+    /// Creates a new [`Command`] for this controller
+    /// and sets the LED colors using the provided closure.
+    #[must_use]
+    pub fn cmd_with_leds<'a, F>(&'a self, led_clr: F) -> Command<'a>
+    where F: Fn(Led<'a>) -> Color
+    {
+        let mut cmd = self.cmd();
+        for led in self.led_iter() {
+            // this cannot fail, since we know the led id will be in bounds
+            cmd.set_led(led.id(), led_clr(led)).expect("Led index incorrect");
+        }
+        cmd
     }
 
     pub(crate) fn get_zone_led_offset(&self, zone_id: usize) -> OpenRgbResult<usize> {
