@@ -27,10 +27,12 @@ impl_enum_discriminant!(ZoneType, Single: 0, Linear: 1, Matrix: 2);
 flags! {
     /// Flags for RGB controller zones
     ///
-    /// Taken from OpenRGB/RGBController.h:122-126 (11/07/2025)
+    /// Taken from OpenRGB/RGBController.h:131-136 (02/02/2026)
     pub enum ZoneFlags: u32 {
         /// Zone is resizable, but only for effects. Treat as single LED
         ResizableForEffectsOnly = 1 << 0,
+        /// Zone has been manually configured
+        IsManuallyConfigured = 1 << 15,
     }
 }
 
