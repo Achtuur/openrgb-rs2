@@ -12,12 +12,16 @@ pub trait ControllerIndex {
     fn controller_id(&self) -> usize;
     /// Returns a reference to the controller with the given index.
     fn index<'a>(&self, group: &'a ControllerGroup) -> OpenRgbResult<&'a Controller> {
-        group.controllers.get(self.controller_id()).ok_or_else(|| {
-            OpenRgbError::CommandError(format!(
-                "Controller with index {} not found",
-                self.controller_id()
-            ))
-        })
+        group
+            .controllers
+            .iter()
+            .find(|controller| controller.id() == self.controller_id())
+            .ok_or_else(|| {
+                OpenRgbError::CommandError(format!(
+                    "Controller with index {} not found",
+                    self.controller_id()
+                ))
+            })
     }
     /// Removes the controller with the given index from the group and returns it.
     fn remove(&self, group: &mut ControllerGroup) -> OpenRgbResult<Controller> {
@@ -207,6 +211,35 @@ mod tests {
             println!("Device type: {device_type:?}");
             for controller in controllers.controllers() {
                 println!("  Controller: {} ({})", controller.name(), controller.id());
+            }
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore = "can only test with openrgb running"]
+    async fn test_group_index() -> OpenRgbResult<()> {
+        let client = OpenRgbClient::connect().await?;
+        let group = client.get_all_controllers().await?;
+        for (idx, controller) in group.iter().enumerate() {
+            assert_eq!(controller.controller_id(), idx);
+            assert_eq!(controller.index(&group)?, controller);
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore = "can only test with openrgb running"]
+    async fn test_per_type_index() -> OpenRgbResult<()> {
+        let client = OpenRgbClient::connect().await?;
+        let group = client.get_all_controllers().await?;
+        let split = group.split_per_type();
+        for (device_type, controllers) in split {
+            println!("Device type: {device_type:?}");
+            for controller in controllers.controllers() {
+                println!("  Controller: {} ({})", controller.name(), controller.id());
+                assert_eq!(controller.index(&controllers)?, controller);
             }
         }
         Ok(())
