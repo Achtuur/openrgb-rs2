@@ -8,6 +8,8 @@ openrgb-rs2 [![crates.io](https://img.shields.io/crates/v/openrgb.svg)](https://
 
 See [documentation](https://docs.rs/openrgb2) and [examples](https://github.com/Achtuur/openrgb-rs2/tree/master/examples).
 
+`openrgb-rs2` will support the latest protocol version (currently 6) and will support previous protocol versions on a best effort basis. If supporting the older versions becomes too much of a maintenance burden, they will be dropped. This is to say, try to use and up-to-date version of OpenRGB.
+
 ```rust
 use openrgb2::{OpenRgbClient, OpenRgbResult};
 
@@ -26,6 +28,19 @@ async fn main() -> OpenRgbResult<()> {
     Ok(())
 }
 ```
+
+# OpenRGB v1.0 Users
+
+In OpenRGB v1.0 onwards, version 6 of the [SDK protocol](https://gitlab.com/CalcProgrammer1/OpenRGB/-/blob/master/Documentation/OpenRGBSDK.md) is used. I have implemented most of the packets and made sure all existing functionality still works. However, they are not integrated with `OpenRgbClient`, meaning the new packets cannot be used with this library yet. If you want any of the following features, please make an issue (or add a 👍 to an existing issue). The following v6 features do not a have a client-side api yet:
+
+- [ ] ProfileManager JSON features: Up/Downloading OpenRGB profiles in JSON format
+- [ ] SettingsManager: Getting and setting settings for OpenRGB.
+- [ ] LogManager: Gettings logs from OpenRGB
+- [ ] RGBController-specific settings: Some RGBControllers have a settings entry in `OpenRGB.json` and these can be updated.
+- [ ] Server updates:
+    - The server can now send out message for things like new log messages or when it has detected a new device (Ctrl+F for "Server Only" [here](https://gitlab.com/CalcProgrammer1/OpenRGB/-/blob/master/Documentation/OpenRGBSDK.md)). This is very much incompatible with how this crate is currently set up, so I will not support them. In my opinion they are also not very useful. If you find a use case for them, let me know.
+- And any other v6 features in the documentation not listed above. Feel free to create an issue for them.
+
 # Performance
 
 The OpenRGB SDK provides a few ways to write colors to devices: [per led](https://gitlab.com/CalcProgrammer1/OpenRGB/-/blob/master/Documentation/OpenRGBSDK.md#net_packet_id_rgbcontroller_updateleds), [per zone](https://gitlab.com/CalcProgrammer1/OpenRGB/-/blob/master/Documentation/OpenRGBSDK.md#net_packet_id_rgbcontroller_updatezoneleds), or [all leds (`set_leds`)](https://gitlab.com/CalcProgrammer1/OpenRGB/-/blob/master/Documentation/OpenRGBSDK.md#net_packet_id_rgbcontroller_updateleds). From my testing it seemed that when updating large number of LEDs, `set_leds` is the fastest one. It's inconvenient to update in this way, as some controllers have multiple unrelated zones, such as motherboards, meaninig you have to keep track of the zone offset.

@@ -230,7 +230,7 @@ impl Controller {
     ///
     /// From my testing, the most efficient way is to always update all LEDs at once.
     /// The `Command` API lets you build a command using updates to individual LEDs, zones or segments
-    /// and then executes them as a single `set_led()` call.
+    /// and then executes them as a single `set_leds()` call.
     ///
     /// # Example
     /// ```no_run
@@ -259,8 +259,27 @@ impl Controller {
         Command::new(self)
     }
 
-    /// Creates a new [`Command`] for this controller
-    /// and sets the LED colors using the provided closure.
+    /// Creates a new [`Command`] for this controller and sets the LED colors using the provided closure.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use openrgb2::{OpenRgbClient, OpenRgbResult, Color};
+    /// // let's say we have a controller with 5 LEDs
+    /// # async fn example() -> OpenRgbResult<()> {
+    /// let mut client = OpenRgbClient::connect().await?;
+    /// let controller = client.get_controller(0).await?;
+    /// // equivalent with command
+    /// let mut cmd = controller.cmd_with_leds(|led| {
+    ///     // invert red and blue channels
+    ///     Color::new(led.color().b, led.color().g, led.color().r)
+    /// })
+    /// // make the first led red
+    /// cmd.set_led(0, Color::new(255, 0, 0))?;
+    /// // this is just a single api call
+    /// cmd.execute().await
+    /// # }
+    /// ```
     #[must_use]
     pub fn cmd_with_leds<'a, F>(&'a self, led_clr: F) -> Command<'a>
     where
@@ -292,7 +311,8 @@ impl Controller {
         Ok(offset)
     }
 
-    /// Fetches controller data again. This updates the state of the controller data.
+    /// Fetches controller data again. This updates the state of the controller data, such as the current colors of the leds.
+    /// The client-side data will update automatically, but this does not mean it matches what is on the server.
     ///
     /// Currently this has to be called manually.
     pub async fn sync_controller_data(&mut self) -> OpenRgbResult<()> {
@@ -336,9 +356,9 @@ mod tests {
     #[ignore = "can only test with openrgb running"]
     async fn test_update_leds() -> OpenRgbResult<()> {
         let client = OpenRgbClient::connect().await?;
-        let controller = client.get_controller(0).await?;
+        let controller = client.get_all_controllers().await?.into_first()?;
         controller.set_controllable_mode().await?;
-        controller.set_leds([Color::new(255, 0, 50); 96]).await?;
+        controller.set_leds([Color::new(255, 0, 50); 10]).await?;
         Ok(())
     }
 
@@ -346,15 +366,13 @@ mod tests {
     #[ignore = "can only test with openrgb running"]
     async fn test_cmd() -> OpenRgbResult<()> {
         let client = OpenRgbClient::connect().await?;
-        let controller = client.get_controller(5).await?;
+        let controller = client.get_all_controllers().await?.into_first()?;
         controller.set_controllable_mode().await?;
 
-        println!("controller: {0:#?}", controller.data.led_alt_names());
-
         let mut cmd = controller.cmd();
-        cmd.set_led(19, Color::new(255, 0, 255))?;
-        cmd.set_zone_leds(0, vec![Color::new(255, 255, 0); 19])?;
-        cmd.set_zone_leds(1, vec![Color::new(0, 255, 255); 75])?;
+        cmd.set_led(8, Color::new(255, 0, 255))?;
+        cmd.set_zone_leds(0, vec![Color::new(255, 255, 0); 3])?;
+        cmd.set_zone_leds(0, vec![Color::new(0, 255, 255); 4])?;
         cmd.execute().await?;
         Ok(())
     }

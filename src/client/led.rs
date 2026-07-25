@@ -14,7 +14,7 @@ impl<'c> Led<'c> {
         let name = parent
             .led_data()
             .get(id)
-            .map(|ld| ld.name())
+            .map(|ld| &ld.name)
             .expect("Led::new() called with invalid parameters");
         let color = parent
             .colors()

@@ -9,6 +9,8 @@ mod plugin;
 mod segment;
 mod zone;
 
+use std::time::Duration;
+
 pub use {command::*, controller::*, group::*, led::*, mode::*, segment::*, zone::*};
 
 use tokio::net::ToSocketAddrs;
@@ -87,10 +89,18 @@ impl OpenRgbClient {
     ///
     /// This function returns an error if communication with the `OpenRGB` SDK server fails.
     pub async fn get_all_controllers(&self) -> OpenRgbResult<ControllerGroup> {
-        let count = self.proto.get_controller_count().await? as usize;
-        let mut controllers = Vec::with_capacity(count);
-        for id in 0..count {
-            let controller = self.get_controller(id).await?;
+        let ids = match self.proto.get_protocol_version() {
+            0..=5 => {
+                let count = self.proto.get_controller_count().await?;
+                (0..count).collect::<Vec<_>>()
+            }
+            6.. => self.proto.get_controller_ids().await?.ids,
+        };
+
+        let mut controllers = Vec::with_capacity(ids.len());
+        for id in ids {
+            let c_data = self.proto.get_controller(id).await?;
+            let controller = Controller::new(id as usize, self.proto.clone(), c_data);
             controllers.push(controller);
         }
         Ok(ControllerGroup::new(controllers))
@@ -118,6 +128,7 @@ impl OpenRgbClient {
     /// # Errors
     ///
     /// This function returns an error if communication with the `OpenRGB` SDK server fails.
+    #[deprecated = "With SDK v6, id's and controller indices are no longer the same. Use `get_all_controllers()` instead"]
     pub async fn get_controller(&self, i: usize) -> OpenRgbResult<Controller> {
         let c_data = self.proto.get_controller(i as u32).await?;
         Ok(Controller::new(i, self.proto.clone(), c_data))
@@ -165,7 +176,7 @@ impl OpenRgbClient {
 
     /// Forces the `OpenRGB` instance to rescan for devices.
     pub async fn rescan_devices(&self) -> OpenRgbResult<()> {
-        self.proto.rescan_devices().await
+        self.proto.rescan_devices(Duration::from_secs(1)).await
     }
 
     /// Returns a list of available plugins installed on `OpenRGB`.

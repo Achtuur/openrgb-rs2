@@ -24,6 +24,21 @@ flags! {
     }
 }
 
+/// Response to [`PacketId::RequestControllerCount`] after v6
+#[derive(Debug)]
+pub(crate) struct ControllerIds {
+    /// Id's of controllers
+    pub ids: Vec<u32>,
+}
+
+impl DeserFromBuf for ControllerIds {
+    fn deserialize(buf: &mut ReceivedMessage<'_>) -> OpenRgbResult<Self> {
+        let count = buf.read_value::<u32>()?;
+        let ids = buf.read_n_values(count as usize)?;
+        Ok(Self { ids })
+    }
+}
+
 /// RGB controller.
 ///
 /// See [Open SDK documentation](https://gitlab.com/CalcProgrammer1/OpenRGB/-/wikis/OpenRGB-SDK-Documentation#net_packet_id_request_controller_data) for more information.
@@ -82,6 +97,7 @@ pub(crate) struct ControllerData {
     ///
     /// Computed by adding up the zone's lengths.
     num_leds: usize,
+    configuration: ProtocolOption<6, String>,
 }
 
 impl ControllerData {
@@ -171,7 +187,7 @@ impl ControllerData {
 
 impl DeserFromBuf for ControllerData {
     fn deserialize(buf: &mut ReceivedMessage<'_>) -> OpenRgbResult<Self> {
-        let _data_size = buf.read_u32()?;
+        let _data_size = buf.read_value::<u32>()?;
         let device_type = buf.read_value()?;
         let name = buf.read_value()?;
         let vendor = buf.read_value()?;
@@ -198,6 +214,7 @@ impl DeserFromBuf for ControllerData {
         let colors = buf.read_value()?;
         let led_alt_names = buf.read_value()?;
         let flags = buf.read_value()?;
+        let configuration = buf.read_value()?;
 
         Ok(Self {
             device_type,
@@ -216,6 +233,7 @@ impl DeserFromBuf for ControllerData {
             flags,
             id: u32::MAX,
             num_leds,
+            configuration,
         })
     }
 }
@@ -281,6 +299,7 @@ mod tests {
         assert_eq!(c_data.colors.len(), 0);
         assert_eq!(c_data.led_alt_names, ProtocolOption::UnsupportedVersion);
         assert_eq!(c_data.flags, ProtocolOption::UnsupportedVersion);
+        assert_eq!(c_data.configuration, ProtocolOption::UnsupportedVersion);
 
         Ok(())
     }

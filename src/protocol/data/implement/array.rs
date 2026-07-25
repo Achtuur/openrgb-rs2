@@ -16,8 +16,7 @@ impl<T: DeserFromBuf, const N: usize> DeserFromBuf for [T; N] {
         let mut arr = [const { MaybeUninit::<T>::uninit() }; N];
 
         for item in &mut arr {
-            let d = T::deserialize(buf)?;
-            item.write(d);
+            item.write(buf.read_value()?);
         }
 
         // the for loop either writes to every element of the array or returns an error
@@ -44,7 +43,7 @@ mod tests {
     #[tokio::test]
     async fn test_write_array() -> OpenRgbResult<()> {
         let mut msg = WriteMessage::new(DEFAULT_PROTOCOL);
-        msg.write_value(&[42; 5])?;
+        msg.write_value([42; 5])?;
         Ok(())
     }
 }

@@ -3,6 +3,7 @@
 use crate::impl_enum_discriminant;
 use crate::{DeserFromBuf, ReceivedMessage};
 
+#[derive(Debug)]
 pub(crate) enum EffectsPluginPacket {
     RequestEffectList = 0,
     StartEffect = 20,
@@ -44,7 +45,7 @@ impl DeserFromBuf for PluginEffect {
         let name = buf.read_value()?;
         let description = buf.read_value()?;
         tracing::trace!("buf after desc: {}", buf);
-        let enabled = buf.read_u8()? != 0;
+        let enabled = buf.read_value::<u8>()? != 0;
         Ok(PluginEffect {
             name,
             description,

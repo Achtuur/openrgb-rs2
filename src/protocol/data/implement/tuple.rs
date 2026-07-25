@@ -7,7 +7,7 @@ macro_rules! impl_tuple {
             fn deserialize(buf: &mut ReceivedMessage<'_>) -> OpenRgbResult<Self> {
                 Ok((
                     $(
-                        $t::deserialize(buf)?,
+                        buf.read_value::<$t>()?,
                     )+
                 ))
             }
@@ -16,7 +16,7 @@ macro_rules! impl_tuple {
         impl<$($t: SerToBuf),+> SerToBuf for ($($t,)+) {
             fn serialize(&self, buf: &mut WriteMessage) -> OpenRgbResult<()> {
                 $(
-                    self.$idx.serialize(buf)?;
+                    buf.write_value(&self.$idx)?;
                 )+
                 Ok(())
             }
@@ -41,10 +41,10 @@ mod tests {
     async fn test_ser_deser_tuple() -> Result<(), Box<dyn Error>> {
         let mut buf = WriteMessage::new(crate::DEFAULT_PROTOCOL);
         let mut msg = buf
-            .push_value(&37_u8)?
-            .push_value(&1337_u32)?
-            .push_value(&(-1337_i32))?
-            .push_value(&4_u32)?
+            .push_value(37_u8)?
+            .push_value(1337_u32)?
+            .push_value(-1337_i32)?
+            .push_value(4_u32)?
             .to_received_msg();
 
         assert_eq!(

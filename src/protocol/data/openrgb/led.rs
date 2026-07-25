@@ -1,16 +1,16 @@
-use crate::OpenRgbResult;
 use crate::protocol::{DeserFromBuf, ReceivedMessage};
+use crate::{OpenRgbResult, SerToBuf};
 
 /// A single LED.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct LedData {
     /// LED name.
-    name: String,
+    pub name: String,
 
     /// LED value.
     ///
     /// This is some internal flag, basically of no use to us
-    value: u32,
+    value: Option<u32>,
 }
 
 impl DeserFromBuf for LedData {
@@ -18,52 +18,64 @@ impl DeserFromBuf for LedData {
     where
         Self: Sized,
     {
-        Ok(LedData {
-            name: buf.read_value()?,
-            value: buf.read_value()?,
-        })
+        let name = buf.read_value()?;
+        let value = if buf.protocol_version() < 6 {
+            Some(buf.read_value()?)
+        } else {
+            None
+        };
+
+        Ok(LedData { name, value })
     }
 }
 
-impl LedData {
-    /// Returns the name of the LED.
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    /// Returns the value of the LED.
-    pub fn value(&self) -> u32 {
-        self.value
+impl SerToBuf for LedData {
+    fn serialize(&self, buf: &mut crate::WriteMessage) -> OpenRgbResult<()> {
+        buf.write_value(&self.name)?;
+        if buf.protocol_version() < 6 {
+            buf.write_value(
+                self.value
+                    .expect("LED value must be set for protocol versions lower than 6"),
+            )?;
+        }
+        Ok(())
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use std::error::Error;
+#[cfg(test)]
+mod tests {
+    use std::error::Error;
 
-//     use tokio_test::io::Builder;
+    use crate::{LedData, ReceivedMessage};
 
-//     use crate::protocol::data::Led;
-//     use crate::protocol::tests::setup;
+    #[tokio::test]
+    async fn test_read_v5() -> Result<(), Box<dyn Error>> {
+        let mut buf = Vec::<u8>::new();
+        buf.extend(((String::from("Led name 123").len() + 1) as u16).to_le_bytes()); // + 1 for null terminator
+        buf.extend(b"Led name 123\0");
+        buf.extend(46_u32.to_le_bytes());
+        let mut reader = ReceivedMessage::new(&buf, 5);
 
-//     #[tokio::test]
-//     async fn test_read_001() -> Result<(), Box<dyn Error>> {
-//         setup()?;
+        let led: LedData = reader.read_value()?;
 
-//         let mut stream = Builder::new()
-//             .read(&5_u16.to_le_bytes())
-//             .read(b"test\0")
-//             .read(&45_u32.to_le_bytes())
-//             .build();
+        assert_eq!(led.name, "Led name 123");
+        assert_eq!(led.value, Some(46));
 
-//         assert_eq!(
-//             stream.read_value::<Led>().await?,
-//             Led {
-//                 name: "test".to_string(),
-//                 value: 45
-//             }
-//         );
+        Ok(())
+    }
 
-//         Ok(())
-//     }
-// }
+    #[tokio::test]
+    async fn test_read_v6() -> Result<(), Box<dyn Error>> {
+        let mut buf = Vec::<u8>::new();
+        buf.extend(((String::from("Led name 123").len() + 1) as u16).to_le_bytes()); // + 1 for null terminator
+        buf.extend(b"Led name 123\0");
+        let mut reader = ReceivedMessage::new(&buf, 6);
+
+        let led: LedData = reader.read_value()?;
+
+        assert_eq!(led.name, "Led name 123");
+        assert_eq!(led.value, None);
+
+        Ok(())
+    }
+}

@@ -4,6 +4,7 @@ use crate::{
 };
 
 /// Option that can be used to represent values not supported by the current protocol version.
+/// `VER` is the _minimum_ supported version. `ProtocolOption<5, T>` means that from sdk version 5 onwards, this will always be `Some(T)`
 ///
 /// If protocol version is suppported, this is just an `T`.
 /// If not, then this is always `ProtocolOption::UnsupportedVersion`.
@@ -15,6 +16,15 @@ pub enum ProtocolOption<const VER: usize, T> {
     Some(T),
     /// Value is not supported by the current protocol version.
     UnsupportedVersion,
+}
+
+impl<const VER: usize, T> std::ops::Deref for ProtocolOption<VER, T> {
+    type Target = Option<T>;
+
+    fn deref(&self) -> &Self::Target {
+        let transmute: &Option<T> = unsafe { std::mem::transmute(self) };
+        transmute
+    }
 }
 
 impl<const VER: usize, T: Default> std::default::Default for ProtocolOption<VER, T> {
