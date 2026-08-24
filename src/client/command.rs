@@ -298,7 +298,7 @@ impl<'a> Command<'a> {
             }
             SetLedCommand::Zone { zone_id, colors } => {
                 let zone = self.controller.get_zone(zone_id)?;
-                if colors.len() >= zone.num_leds() {
+                if colors.len() > zone.num_leds() {
                     return Err(OpenRgbError::CommandError(format!(
                         "Zone {} for controller {} was given {} colors, while its length is {}. This might become a hard error in the future.",
                         zone_id,
@@ -319,7 +319,7 @@ impl<'a> Command<'a> {
             } => {
                 let zone = self.controller.get_zone(zone_id)?;
                 let seg = zone.get_segment(segment_id)?;
-                if colors.len() >= seg.num_leds() {
+                if colors.len() > seg.num_leds() {
                     return Err(OpenRgbError::CommandError(format!(
                         "Segment {} for zone {} in controller {} was given {} colors, while its length is {}. This might become a hard error in the future.",
                         seg.name(),
