@@ -13,7 +13,12 @@ One caveat is that this project is still young, so some smaller breaking changes
   ### Security
  -->
 
-## [0.3.0] - Unreleased
+## [0.4.0] - Update to SDK version 6
+
+### Added
+- Support for OpenRGB 1.0 with SDK version 6
+
+## [0.3.0]
 
 ### Added
 
