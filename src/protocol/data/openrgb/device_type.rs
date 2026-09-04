@@ -64,7 +64,7 @@ mod tests {
     #[tokio::test]
     async fn test_read_001() -> Result<(), Box<dyn Error>> {
         let mut buf = WriteMessage::new(crate::DEFAULT_PROTOCOL);
-        let mut msg = buf.push_value(&3_u32)?.to_received_msg();
+        let mut msg = buf.push_value(3_u32)?.to_received_msg();
 
         assert_eq!(msg.read_value::<DeviceType>()?, DeviceType::Cooler);
         Ok(())
@@ -73,7 +73,7 @@ mod tests {
     #[tokio::test]
     async fn test_write_001() -> Result<(), Box<dyn Error>> {
         let mut buf = WriteMessage::new(crate::DEFAULT_PROTOCOL);
-        let mut msg = buf.push_value(&DeviceType::Cooler)?.to_received_msg();
+        let mut msg = buf.push_value(DeviceType::Cooler)?.to_received_msg();
         assert_eq!(msg.read_value::<u32>()?, 3);
         Ok(())
     }

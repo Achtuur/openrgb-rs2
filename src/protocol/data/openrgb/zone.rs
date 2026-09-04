@@ -1,8 +1,9 @@
-use array2d::Array2D;
 use flagset::{FlagSet, flags};
 
-use crate::protocol::data::ProtocolOption;
 use crate::protocol::{DeserFromBuf, ReceivedMessage};
+use crate::{
+    ModeData, SerToBuf, data::openrgb::matrix::MatrixMapData, protocol::data::ProtocolOption,
+};
 use crate::{OpenRgbResult, impl_enum_discriminant};
 
 use super::SegmentData;
@@ -20,9 +21,29 @@ pub enum ZoneType {
 
     /// Matrix zone.
     Matrix = 2,
+
+    /// Linear loop zone
+    LinearLoop = 3,
+
+    /// Matrix Loop in X direction
+    MatrixLoopX = 4,
+
+    /// Matrix Loop in Y direction
+    MatrixLoopY = 5,
+
+    /// Segmented zone
+    Segmented = 6,
 }
 
-impl_enum_discriminant!(ZoneType, Single: 0, Linear: 1, Matrix: 2);
+impl_enum_discriminant!(ZoneType,
+    Single: 0,
+    Linear: 1,
+    Matrix: 2,
+    LinearLoop: 3,
+    MatrixLoopX: 4,
+    MatrixLoopY: 5,
+    Segmented: 6
+);
 
 flags! {
     /// Flags for RGB controller zones
@@ -31,6 +52,33 @@ flags! {
     pub enum ZoneFlags: u32 {
         /// Zone is resizable, but only for effects. Treat as single LED
         ResizableForEffectsOnly = 1 << 0,
+        ///  Zone size is manually configurable
+        ManuallyConfigurableSize = 1 << 1,
+        ///  Zone name is manually configurable
+        ManuallyConfigurableName = 1 << 2,
+        ///  Zone type is manually configurable
+        ManuallyConfigurableType = 1 << 3,
+        ///  Zone matrix map is manually configurable
+        ManuallyConfigurableMatrixMap = 1 << 4,
+        ///  Zone segments are manually configurable
+        ManuallyConfigurableSegments = 1 << 5,
+        ///  Zone dev-specific cfg manually configurable
+        ManuallyConfigurableDeviceSpecific = 1 << 6,
+        ///  Zone size has been manually configured
+        ManuallyConfiguredSize = 1 << 12,
+        ///  Zone name has been manually configured
+        ManuallyConfiguredName = 1 << 13,
+        ///  Zone type has been manually configured
+        ManuallyConfiguredType = 1 << 14,
+        ///  Zone matrix map has been manually
+        ManuallyConfiguredMatrixMap = 1 << 15,
+        ///  Zone segments have been manually configured
+        ManuallyConfiguredSegments = 1 << 16,
+        ///  Zone device-specific cfg manually
+        ManuallyConfiguredDeviceSpecific = 1 << 17,
+        ///  Zone geometry may
+        ZoneGeometryMayChange = 1 << 24,
+
     }
 }
 
@@ -79,7 +127,11 @@ pub(crate) struct ZoneData {
     ///
     /// The value represents the LED id of the LED at that position.
     /// A value of `u32::MAX` means that there is no led present.
-    pub matrix: Option<Array2D<u32>>,
+    pub matrix: Option<MatrixMapData>,
+    /// Currently active mode, points to `zone_modes`.
+    pub active_mode: ProtocolOption<6, i32>,
+    pub zone_modes: ProtocolOption<6, Vec<ModeData>>,
+    pub display_name: ProtocolOption<6, String>,
 }
 
 impl ZoneData {
@@ -123,7 +175,7 @@ impl ZoneData {
     /// LED matrix of this zone.
     ///
     /// If [`Self::zone_type()`] is [`ZoneType::Matrix`], this will return `Some`.
-    pub fn matrix(&self) -> Option<&Array2D<u32>> {
+    pub fn matrix(&self) -> Option<&MatrixMapData> {
         self.matrix.as_ref()
     }
 }
@@ -135,17 +187,7 @@ impl DeserFromBuf for ZoneData {
         let leds_min = buf.read_value()?;
         let leds_max = buf.read_value()?;
         let leds_count = buf.read_value()?;
-        let matrix_len = buf.read_u16()? as usize;
-        let matrix = match matrix_len {
-            0 => None,
-            _ => Some({
-                let matrix_height = buf.read_value::<u32>()? as usize;
-                let matrix_width = buf.read_value::<u32>()? as usize;
-                let matrix_size = matrix_height * matrix_width;
-                let matrix_data = buf.read_n_values::<u32>(matrix_size)?;
-                Array2D::from_row_major(&matrix_data, matrix_height, matrix_width).unwrap()
-            }),
-        };
+        let matrix = buf.read_value()?;
 
         let mut segments: ProtocolOption<4, Vec<SegmentData>> = buf.read_value()?;
         if let Some(seg) = segments.value_mut() {
@@ -155,6 +197,12 @@ impl DeserFromBuf for ZoneData {
         }
 
         let flags = buf.read_value()?;
+
+        // theory
+        let active_mode = buf.read_value()?;
+        let zone_modes = buf.read_value()?;
+        let display_name = buf.read_value()?;
+
         Ok(Self {
             id: usize::MAX,
             name,
@@ -165,7 +213,27 @@ impl DeserFromBuf for ZoneData {
             matrix,
             segments,
             flags,
+            active_mode,
+            zone_modes,
+            display_name,
         })
+    }
+}
+
+impl SerToBuf for ZoneData {
+    fn serialize(&self, buf: &mut crate::WriteMessage) -> OpenRgbResult<()> {
+        buf.push_value(&self.name)?
+            .push_value(self.zone_type)?
+            .push_value(self.leds_min)?
+            .push_value(self.leds_max)?
+            .push_value(self.leds_count)?
+            .push_value(&self.matrix)?
+            .push_value(&self.segments)?
+            .push_value(&self.flags)?
+            .push_value(&self.active_mode)?
+            .push_value(&self.zone_modes)?
+            .push_value(&self.display_name)?;
+        Ok(())
     }
 }
 
@@ -178,7 +246,7 @@ mod tests {
     #[tokio::test]
     async fn test_read_001() -> Result<(), Box<dyn Error>> {
         let mut buf = WriteMessage::new(crate::DEFAULT_PROTOCOL);
-        let mut msg = buf.push_value(&1_u32)?.to_received_msg();
+        let mut msg = buf.push_value(1_u32)?.to_received_msg();
 
         assert_eq!(msg.read_value::<ZoneType>()?, ZoneType::Linear);
         Ok(())
@@ -187,7 +255,7 @@ mod tests {
     #[tokio::test]
     async fn test_write_001() -> Result<(), Box<dyn Error>> {
         let mut buf = WriteMessage::new(crate::DEFAULT_PROTOCOL);
-        let mut msg = buf.push_value(&ZoneType::Linear)?.to_received_msg();
+        let mut msg = buf.push_value(ZoneType::Linear)?.to_received_msg();
         assert_eq!(msg.read_value::<u32>()?, 1);
         Ok(())
     }

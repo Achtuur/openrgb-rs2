@@ -1,26 +1,71 @@
-use std::pin::Pin;
+use std::{pin::Pin, time::Duration};
 
-use crate::protocol::PacketId;
+use crate::{Acknowledge, protocol::PacketId};
 use crate::{DeserFromBuf, OpenRgbError, OpenRgbResult, ReceivedMessage, SerToBuf, WriteMessage};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::{TcpStream, ToSocketAddrs},
 };
 
+#[derive(Debug)]
+pub(crate) struct RecvPacket {
+    pub header: OpenRgbMessageHeader,
+    data: Vec<u8>,
+}
+
+impl std::fmt::Display for RecvPacket {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{:?} {:?} ({})",
+            self.header.packet_id,
+            self.data,
+            String::from_utf8_lossy(&self.data)
+        )
+    }
+}
+
+impl RecvPacket {
+    pub async fn read(stream: &mut TcpStream) -> OpenRgbResult<Self> {
+        let header = OpenRgbMessageHeader::read(stream).await?;
+        tracing::debug!("Read header {header:?}");
+        Ok(Self {
+            data: Self::read_data(stream, &header).await?,
+            header,
+        })
+    }
+
+    async fn read_data(
+        stream: &mut TcpStream,
+        header: &OpenRgbMessageHeader,
+    ) -> OpenRgbResult<Vec<u8>> {
+        // the header tells us exactly how long the packet is, so we might as well read it all at once
+        let mut data = vec![0; header.packet_size as usize];
+        stream.read_exact(&mut data).await?;
+        Ok(data)
+    }
+
+    pub fn deser<T: DeserFromBuf>(self, protocol_version: u32) -> OpenRgbResult<T> {
+        let mut recv = ReceivedMessage::new(&self.data, protocol_version);
+        T::deserialize(&mut recv)
+    }
+}
+
 /// Utility struct to write packets.
 /// Some packets need to be prepended by their length.
 /// This struct serializes the contents and prepends the length to the buffer.
-pub(crate) struct OpenRgbPacket<T: SerToBuf> {
+#[derive(Debug)]
+pub(crate) struct OpenRgbWritePacket<T: SerToBuf> {
     pub contents: T,
 }
 
-impl<T: SerToBuf> OpenRgbPacket<T> {
-    pub fn new(contents: T) -> OpenRgbPacket<T> {
+impl<T: SerToBuf> OpenRgbWritePacket<T> {
+    pub fn new(contents: T) -> OpenRgbWritePacket<T> {
         Self { contents }
     }
 }
 
-impl<T: SerToBuf> SerToBuf for OpenRgbPacket<T> {
+impl<T: SerToBuf> SerToBuf for OpenRgbWritePacket<T> {
     fn serialize(&self, buf: &mut WriteMessage) -> OpenRgbResult<()> {
         let mut inner_buf = WriteMessage::new(buf.protocol_version());
         self.contents.serialize(&mut inner_buf)?;
@@ -31,10 +76,34 @@ impl<T: SerToBuf> SerToBuf for OpenRgbPacket<T> {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct OpenRgbMessageHeader {
-    packet_id: PacketId,
-    device_id: u32,
-    packet_size: u32,
+    pub packet_id: PacketId,
+    pub device_id: u32,
+    pub packet_size: u32,
+}
+
+impl DeserFromBuf for OpenRgbMessageHeader {
+    fn deserialize(buf: &mut ReceivedMessage<'_>) -> OpenRgbResult<Self>
+    where
+        Self: Sized,
+    {
+        let magic = buf.read_value::<[u8; 4]>()?;
+        if magic != Self::MAGIC {
+            return Err(OpenRgbError::ProtocolError(format!(
+                "expected OpenRGB magic value, got {magic:?}"
+            )));
+        }
+
+        let device_id = buf.read_value::<u32>()?;
+        let packet_id = buf.read_value::<PacketId>()?;
+        let packet_size = buf.read_value::<u32>()?;
+        Ok(Self {
+            device_id,
+            packet_id,
+            packet_size,
+        })
+    }
 }
 
 impl OpenRgbMessageHeader {
@@ -45,30 +114,17 @@ impl OpenRgbMessageHeader {
         let mut buf = [0u8; 16];
         stream.read_exact(&mut buf).await?;
         let mut recv = ReceivedMessage::new(&buf, 0); // header is constant across protocol versions
-        tracing::trace!("Read header: {}", recv);
-        let magic = recv.read_value::<[u8; 4]>()?;
-        if magic != Self::MAGIC {
-            return Err(OpenRgbError::ProtocolError(format!(
-                "expected OpenRGB magic value, got {magic:?}"
-            )));
-        }
-
-        let device_id = recv.read_u32()?;
-        let packet_id = recv.read_value::<PacketId>()?;
-        let packet_size = recv.read_u32()?;
-        Ok(Self {
-            device_id,
-            packet_id,
-            packet_size,
-        })
+        Self::deserialize(&mut recv)
     }
 
     async fn write(&self, stream: &mut TcpStream) -> OpenRgbResult<()> {
         let mut buf = WriteMessage::with_capacity(0, 16);
         buf.write_slice(&Self::MAGIC);
         buf.write_u32(self.device_id);
-        buf.write_value(&self.packet_id)?;
+        buf.write_value(self.packet_id)?;
         buf.write_u32(self.packet_size);
+        tracing::trace!("Writing header: {:?}", self);
+        tracing::trace!("Writing header: {}", buf);
         stream.write_all(buf.bytes()).await?;
         Ok(())
     }
@@ -101,37 +157,122 @@ impl ProtocolStream {
         self.protocol_version = version;
     }
 
+    /// Writes and receives a packet. Use this for packets that expect a response that is not an ACK.
     pub async fn request<I: SerToBuf, O: DeserFromBuf>(
         &mut self,
         device_id: u32,
         packet_id: PacketId,
-        data: &I,
+        data: I,
     ) -> OpenRgbResult<O> {
+        /*
+           1. write only -> automatically receive ACK (write/readACK) -> write
+           2. write->read and receive ack (write/readT/readACK) -> request
+
+           Both cases need to check a server only message before hand.
+           Assumption is that server-only messages are not sent in between a write->read
+        */
+
         self.write_packet(device_id, packet_id, data).await?;
-        self.read_packet(device_id, packet_id).await
+        let read = self.read_packet(device_id, packet_id).await?;
+        self.recv_ack(device_id, packet_id).await?;
+        Ok(read)
     }
 
-    pub async fn read_packet<T: DeserFromBuf>(
+    /// Writes and receives a packet. Use this for packets that don't expect a response (excluding ACK).
+    pub async fn write<I: SerToBuf>(
+        &mut self,
+        device_id: u32,
+        packet_id: PacketId,
+        data: I,
+    ) -> OpenRgbResult<()> {
+        self.write_packet(device_id, packet_id, data).await?;
+        self.recv_ack(device_id, packet_id).await?;
+        Ok(())
+    }
+
+    async fn recv_ack(&mut self, device_id: u32, packet_id: PacketId) -> OpenRgbResult<()> {
+        if self.protocol_version < 6 {
+            return Ok(()); // only applies to protocol version 6 and up
+        }
+
+        let ack = self
+            .read_packet::<Acknowledge>(device_id, PacketId::Acknowledge)
+            .await?;
+
+        if !ack.status_code.is_ok() {
+            return Err(OpenRgbError::ProtocolError(format!(
+                "Acknowledge returned error: {:?}",
+                ack
+            )));
+        }
+
+        if ack.packet_id != packet_id {
+            return Err(OpenRgbError::ProtocolError(format!(
+                "Received acknowledge contains unexpected packet id. Expected {}, got {}",
+                packet_id, ack.packet_id
+            )));
+        }
+        Ok(())
+    }
+
+    /// Returns received packet without validating the device or packet id.
+    pub async fn recv_packet(&mut self) -> OpenRgbResult<RecvPacket> {
+        // This reads directly from the stream as opposed to other deserialisation
+        RecvPacket::read(&mut self.stream).await
+    }
+
+    async fn read_packet<T: DeserFromBuf>(
         &mut self,
         device_id: u32,
         packet_id: PacketId,
     ) -> OpenRgbResult<T> {
-        // the header tells us exactly how long the packet is, so we might as well read it all at once
-        let header = self.read_header(device_id, packet_id).await?;
-        let mut buf = vec![0u8; header.packet_size as usize];
-        self.stream.read_exact(&mut buf).await?;
-        let mut recv = ReceivedMessage::new(&buf, self.protocol_version());
-        tracing::trace!("Read packet: {}", recv);
-        T::deserialize(&mut recv)
+        loop {
+            // Keep receiving packets until we get one that we don't ignore. This is likely the response we're looking for
+            let packet =
+                tokio::time::timeout(Duration::from_secs(1), async { self.recv_packet().await })
+                    .await??;
+
+            if packet.header.packet_id.is_server_only()
+                && packet.header.packet_id != packet_id.expected_response()
+            {
+                tracing::trace!(
+                    "Received {} instead of expected {}, ignoring...",
+                    packet.header.packet_id,
+                    packet_id.expected_response()
+                );
+                continue;
+            }
+
+            let mut recv = ReceivedMessage::new(&packet.data, self.protocol_version());
+            // tracing::debug!("Read packet data: {}", recv);
+            match packet.header.packet_id {
+                p if p != packet_id.expected_response() => {
+                    return Err(OpenRgbError::ProtocolError(format!(
+                        "Unexpected packet ID: expected {}, got {}",
+                        packet_id.expected_response(),
+                        packet.header.packet_id
+                    )));
+                }
+                _ => {
+                    if packet.header.device_id != device_id {
+                        return Err(OpenRgbError::ProtocolError(format!(
+                            "Unexpected device ID: expected {}, got {}",
+                            device_id, packet.header.device_id
+                        )));
+                    }
+
+                    return T::deserialize(&mut recv);
+                }
+            }
+        }
     }
 
-    pub async fn write_packet<T: SerToBuf>(
+    pub(crate) async fn write_packet<T: SerToBuf>(
         &mut self,
         device_id: u32,
         packet_id: PacketId,
-        data: &T,
+        data: T,
     ) -> OpenRgbResult<()> {
-        // let mut buf = Vec::with_capacity(8);
         let mut buf = WriteMessage::new(self.protocol_version());
         data.serialize(&mut buf)?;
         let packet_size = buf.len() as u32;
@@ -142,30 +283,9 @@ impl ProtocolStream {
         };
         header.write(&mut self.stream).await?;
 
-        tracing::debug!("Writing packet: {}", buf);
+        tracing::trace!("Writing packet: {}", buf);
         self.stream.write_all(buf.bytes()).await?;
         Ok(())
-    }
-
-    async fn read_header(
-        &mut self,
-        device_id: u32,
-        packet_id: PacketId,
-    ) -> OpenRgbResult<OpenRgbMessageHeader> {
-        let header = OpenRgbMessageHeader::read(&mut self.stream).await?;
-        if header.packet_id != packet_id {
-            return Err(OpenRgbError::ProtocolError(format!(
-                "Unexpected packet ID: expected {:?}, got {:?}",
-                packet_id, header.packet_id
-            )));
-        }
-        if header.device_id != device_id {
-            return Err(OpenRgbError::ProtocolError(format!(
-                "Unexpected device ID: expected {}, got {}",
-                device_id, header.device_id
-            )));
-        }
-        Ok(header)
     }
 }
 

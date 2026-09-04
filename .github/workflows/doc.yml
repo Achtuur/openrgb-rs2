@@ -23,4 +23,4 @@ jobs:
             cargo-
 
       - name: Build documentation
-        run: cargo doc
+        run: cargo doc --all-features

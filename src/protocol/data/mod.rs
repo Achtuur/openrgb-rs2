@@ -29,7 +29,7 @@ macro_rules! impl_enum_discriminant {
         impl TryFrom<u32> for $enum {
             type Error = $crate::OpenRgbError;
 
-            fn try_from(value: u32) -> core::result::Result<Self, Self::Error> {
+            fn try_from(value: u32) -> core::result::Result<Self, <Self as TryFrom<u32>>::Error> {
                 match value {
                     $(
                         $value => Ok($enum::$var),
@@ -61,7 +61,7 @@ macro_rules! impl_enum_discriminant {
 
         impl $crate::protocol::DeserFromBuf for $enum {
             fn deserialize(buf: &mut $crate::protocol::ReceivedMessage<'_>) -> $crate::OpenRgbResult<Self> {
-                let raw = buf.read_u32()?;
+                let raw = buf.read_value::<u32>()?;
                 $enum::try_from(raw)
             }
         }
@@ -83,18 +83,21 @@ mod tests {
     fn test_macro() {
         #[derive(Clone, Copy, PartialEq, Eq, Debug)]
         enum Test {
-            A,
-            B,
+            A = 0,
+            B = 1,
+            C = 53,
         }
 
-        impl_enum_discriminant!(Test, A: 1, B: 2);
+        impl_enum_discriminant!(Test, A: 1, B: 2, C: 53);
 
         assert_eq!(Test::try_from(1).unwrap(), Test::A);
         assert_eq!(Test::try_from(2).unwrap(), Test::B);
         assert!(Test::try_from(3).is_err());
         assert_eq!(u32::from(Test::A), 1);
         assert_eq!(u32::from(Test::B), 2);
+        assert_eq!(u32::from(Test::C), 53);
         assert_eq!(u32::from(&Test::A), u32::from(Test::A));
         assert_eq!(u32::from(&Test::B), u32::from(Test::B));
+        assert_eq!(u32::from(&Test::C), u32::from(Test::C));
     }
 }

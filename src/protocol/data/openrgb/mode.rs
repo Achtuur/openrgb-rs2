@@ -42,6 +42,12 @@ flags! {
 
         /// Mode automatically saves.
         AutomaticSave = 1 << 9,
+
+        /// Mode always applies to entire device
+        RequiresEntireDevice = 1 << 10,
+
+        /// Mode has diagonal direction
+        HasDiagonalDirection = 1 << 11,
     }
 }
 
@@ -66,6 +72,18 @@ pub enum Direction {
 
     /// Vertical direction.
     Vertical = 5,
+
+    /// Diagonal direction, up left
+    UpLeft = 6,
+
+    /// Diagonal direction, up right
+    UpRight = 7,
+
+    /// Diagonal direction, down left
+    DownLeft = 8,
+
+    /// Diagonal direction, down right
+    DownRight = 9,
 }
 
 impl_enum_discriminant!(
@@ -75,7 +93,11 @@ impl_enum_discriminant!(
     Up: 2,
     Down: 3,
     Horizontal: 4,
-    Vertical: 5
+    Vertical: 5,
+    UpLeft: 6,
+    UpRight:  7,
+    DownLeft: 8,
+    DownRight: 9
 );
 
 /// RGB controller color mode.
@@ -108,7 +130,7 @@ pub struct ModeData {
     name: String,
 
     /// Device specific mode value
-    value: i32,
+    value: Option<i32>,
 
     /// Mode flags set.
     flags: FlagSet<ModeFlag>,
@@ -293,7 +315,12 @@ impl ModeData {
 impl DeserFromBuf for ModeData {
     fn deserialize(buf: &mut ReceivedMessage<'_>) -> OpenRgbResult<Self> {
         let name = buf.read_value()?;
-        let value = buf.read_value()?;
+        // mode specific value was deprecated in protocol v6
+        let value = if buf.protocol_version() < 6 {
+            Some(buf.read_value()?)
+        } else {
+            None
+        };
         let flags = buf.read_value()?;
         let speed_min = buf.read_value()?;
         let speed_max = buf.read_value()?;
@@ -329,19 +356,23 @@ impl DeserFromBuf for ModeData {
 
 impl SerToBuf for ModeData {
     fn serialize(&self, buf: &mut WriteMessage) -> OpenRgbResult<()> {
-        buf.push_value(&self.name)?
-            .push_value(&self.value)?
-            .push_value(&self.flags)?
-            .push_value(&self.speed_min)?
-            .push_value(&self.speed_max)?
+        buf.push_value(&self.name)?;
+        if buf.protocol_version() < 6 {
+            buf.push_value(self.value.expect(
+                "Internal error: Mode value should be set for protocol version less than 6",
+            ))?;
+        }
+        buf.push_value(self.flags)?
+            .push_value(self.speed_min)?
+            .push_value(self.speed_max)?
             .push_value(&self.brightness_min)?
             .push_value(&self.brightness_max)?
             .push_value(&self.brightness)?
-            .push_value(&self.colors_min)?
-            .push_value(&self.colors_max)?
-            .push_value(&self.speed)?
-            .push_value(&self.direction)?
-            .push_value(&self.color_mode)?
+            .push_value(self.colors_min)?
+            .push_value(self.colors_max)?
+            .push_value(self.speed)?
+            .push_value(self.direction)?
+            .push_value(self.color_mode)?
             .push_value(&self.colors)?;
         Ok(())
     }
@@ -363,7 +394,7 @@ mod tests {
     #[tokio::test]
     async fn test_read_flag() -> Result<(), Box<dyn Error>> {
         let mut buf = WriteMessage::new(crate::DEFAULT_PROTOCOL);
-        let mut msg = buf.push_value(&154_u32)?.to_received_msg();
+        let mut msg = buf.push_value(154_u32)?.to_received_msg();
 
         assert_eq!(
             msg.read_value::<FlagSet<ModeFlag>>()?,
@@ -377,7 +408,7 @@ mod tests {
     async fn test_write_flag() -> Result<(), Box<dyn Error>> {
         let mut buf = WriteMessage::new(crate::DEFAULT_PROTOCOL);
         let mut msg = buf
-            .push_value(&(ModeFlag::HasBrightness | ModeFlag::HasSpeed))?
+            .push_value(ModeFlag::HasBrightness | ModeFlag::HasSpeed)?
             .to_received_msg();
 
         assert_eq!(msg.read_value::<u32>()?, (1 << 4) | (1 << 0));
@@ -388,7 +419,7 @@ mod tests {
     #[tokio::test]
     async fn test_read_dir() -> Result<(), Box<dyn Error>> {
         let mut buf = WriteMessage::new(crate::DEFAULT_PROTOCOL);
-        let mut msg = buf.push_value(&3_u32)?.to_received_msg();
+        let mut msg = buf.push_value(3_u32)?.to_received_msg();
 
         assert_eq!(msg.read_value::<Direction>()?, Direction::Down);
         Ok(())
@@ -397,7 +428,7 @@ mod tests {
     #[tokio::test]
     async fn test_write_dir() -> Result<(), Box<dyn Error>> {
         let mut buf = WriteMessage::new(crate::DEFAULT_PROTOCOL);
-        let mut msg = buf.push_value(&Direction::Down)?.to_received_msg();
+        let mut msg = buf.push_value(Direction::Down)?.to_received_msg();
         assert_eq!(msg.read_value::<u32>()?, 3);
         Ok(())
     }
@@ -405,7 +436,7 @@ mod tests {
     #[tokio::test]
     async fn test_read_color_mode() -> Result<(), Box<dyn Error>> {
         let mut buf = WriteMessage::new(crate::DEFAULT_PROTOCOL);
-        let mut msg = buf.push_value(&3_u32)?.to_received_msg();
+        let mut msg = buf.push_value(3_u32)?.to_received_msg();
 
         assert_eq!(msg.read_value::<ColorMode>()?, ColorMode::Random);
         Ok(())
@@ -414,7 +445,7 @@ mod tests {
     #[tokio::test]
     async fn test_write_color_mode() -> Result<(), Box<dyn Error>> {
         let mut buf = WriteMessage::new(crate::DEFAULT_PROTOCOL);
-        let mut msg = buf.push_value(&ColorMode::Random)?.to_received_msg();
+        let mut msg = buf.push_value(ColorMode::Random)?.to_received_msg();
         assert_eq!(msg.read_value::<u32>()?, 3);
         Ok(())
     }
@@ -423,20 +454,20 @@ mod tests {
     fn test_read_001() -> Result<(), Box<dyn Error>> {
         let mut buf = WriteMessage::new(3);
         let mut msg = buf
-            .push_value(&"test")? // name
-            .push_value(&46_i32)? // value
-            .push_value(&31_u32)? // flags
-            .push_value(&10_u32)? // speed_min
-            .push_value(&1000_u32)? // speed_max
-            .push_value(&1_u32)? // brightness_min
-            .push_value(&1024_u32)? // brightness_max
-            .push_value(&512_u32)? // brightness
-            .push_value(&0_u32)? // colors_min
-            .push_value(&256_u32)? // colors_max
-            .push_value(&51_u32)? // speed
-            .push_value(&4_u32)? // direction
-            .push_value(&1_u32)? // color_mode
-            .push_value(&[
+            .push_value("test")? // name
+            .push_value(46_i32)? // value
+            .push_value(31_u32)? // flags
+            .push_value(10_u32)? // speed_min
+            .push_value(1000_u32)? // speed_max
+            .push_value(1_u32)? // brightness_min
+            .push_value(1024_u32)? // brightness_max
+            .push_value(512_u32)? // brightness
+            .push_value(0_u32)? // colors_min
+            .push_value(256_u32)? // colors_max
+            .push_value(51_u32)? // speed
+            .push_value(4_u32)? // direction
+            .push_value(1_u32)? // color_mode
+            .push_value([
                 Color {
                     r: 37,
                     g: 54,
@@ -483,11 +514,12 @@ mod tests {
     }
 
     #[test]
+    #[tracing_test::traced_test]
     fn test_write_001() -> Result<(), Box<dyn Error>> {
         let mode = ModeData {
             id: u32::MAX,
             name: "test".to_owned(),
-            value: 46,
+            value: Some(46),
             flags: HasDirection | HasSpeed | HasBrightness,
             speed_min: 10,
             speed_max: 1000,
@@ -513,10 +545,22 @@ mod tests {
             ],
         };
 
-        let mut buf = WriteMessage::new(crate::DEFAULT_PROTOCOL);
+        // `value` field should be set here
+        let mut buf = WriteMessage::new(5);
         buf.write_value(&mode)?;
         let mut msg = buf.to_received_msg();
-        assert_eq!(mode, msg.read_value::<ModeData>()?);
+        pretty_assertions::assert_eq!(mode, msg.read_value::<ModeData>()?);
+
+        // `value` field should not be set here
+        let mut buf6 = WriteMessage::new(6);
+        buf6.write_value(&mode)?;
+        let mut msg6 = buf6.to_received_msg();
+        let mut data = msg6.read_value::<ModeData>()?;
+        assert!(data.value.is_none());
+
+        // to make the assertion work
+        data.value = mode.value;
+        pretty_assertions::assert_eq!(mode, data);
         Ok(())
     }
 }

@@ -10,10 +10,10 @@ pub type Color = RGB8;
 
 impl DeserFromBuf for Color {
     fn deserialize(buf: &mut ReceivedMessage<'_>) -> OpenRgbResult<Self> {
-        let r = buf.read_u8()?;
-        let g = buf.read_u8()?;
-        let b = buf.read_u8()?;
-        let _ = buf.read_u8()?; // Skip the alpha channel
+        let r = buf.read_value::<u8>()?;
+        let g = buf.read_value::<u8>()?;
+        let b = buf.read_value::<u8>()?;
+        let _ = buf.read_value::<u8>()?; // Skip the alpha channel
         Ok(Color { r, g, b })
     }
 }
@@ -59,7 +59,7 @@ mod tests {
             g: 54,
             b: 126,
         };
-        buf.write_value(&c)?;
+        buf.write_value(c)?;
         let mut msg = buf.to_received_msg();
 
         assert_eq!(&msg.read_n_values::<u8>(4)?, &[37_u8, 54_u8, 126_u8, 0_u8]);

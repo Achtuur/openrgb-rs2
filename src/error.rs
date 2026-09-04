@@ -17,6 +17,15 @@ pub enum OpenRgbError {
         source: std::io::Error,
     },
 
+    /// Failed to deserialize json
+    #[error("Failed to deserialize JSON")]
+    FailedDeserializeJson {
+        /// Source error
+        #[source]
+        #[from]
+        source: serde_json::Error,
+    },
+
     /// Communication failure with `OpenRGB` server.
     #[error("Failed exchanging data with OpenRGB server")]
     CommunicationError {
@@ -48,4 +57,8 @@ pub enum OpenRgbError {
     /// Command was given invalid parameters
     #[error("Invalid command: {0}")]
     CommandError(String),
+
+    /// Operation has timed out
+    #[error("Operation has timed out")]
+    Timeout(#[from] tokio::time::error::Elapsed),
 }

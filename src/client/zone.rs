@@ -1,9 +1,7 @@
-use array2d::Array2D;
-
 use crate::{
     Color, Command, Controller, Led, OpenRgbError, OpenRgbResult, ZoneType,
     client::segment::Segment,
-    data::{SegmentData, ZoneData},
+    data::{MatrixMapData, SegmentData, ZoneData},
 };
 
 /// A zone in a controller, which contains one or more LEDs.
@@ -58,7 +56,7 @@ impl<'c> Zone<'c> {
             pub(crate) fn segment_data(&self) -> Option<&[SegmentData]>;
             #[expect(unused, reason = "Api not finalised yet")]
             #[call(matrix)]
-            pub(crate) fn matrix_data(&self) -> Option<&Array2D<u32>>;
+            pub(crate) fn matrix_data(&self) -> Option<&MatrixMapData>;
         }
     }
 

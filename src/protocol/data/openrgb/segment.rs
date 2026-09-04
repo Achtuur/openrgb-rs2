@@ -1,5 +1,6 @@
 use crate::{
-    OpenRgbError, OpenRgbResult, ZoneType,
+    OpenRgbError, OpenRgbResult, ProtocolOption, ZoneType,
+    data::openrgb::matrix::MatrixMapData,
     protocol::{DeserFromBuf, ReceivedMessage, SerToBuf, WriteMessage},
 };
 
@@ -13,6 +14,8 @@ pub struct SegmentData {
     seg_type: ZoneType,
     start_idx: u32,
     led_count: u32,
+    matrix: ProtocolOption<6, Option<MatrixMapData>>,
+    flags: ProtocolOption<6, u32>,
 
     // Not part of protocol, but set immediately after reading
     id: usize,
@@ -25,6 +28,9 @@ impl SegmentData {
             seg_type: ZoneType::Linear,
             start_idx,
             led_count,
+            // safe defaults hopefully
+            matrix: ProtocolOption::Some(None),
+            flags: ProtocolOption::Some(0),
             id: usize::MAX,
         }
     }
@@ -67,11 +73,16 @@ impl DeserFromBuf for SegmentData {
         let start_idx = buf.read_value()?;
         let led_count = buf.read_value()?;
 
+        let matrix = buf.read_value()?;
+        let flags = buf.read_value()?;
+
         Ok(Self {
             name,
             seg_type,
             start_idx,
             led_count,
+            matrix,
+            flags,
             id: usize::MAX,
         })
     }
@@ -85,9 +96,9 @@ impl SerToBuf for SegmentData {
             ));
         }
         buf.write_value(&self.name)?;
-        buf.write_value(&self.seg_type)?;
-        buf.write_value(&self.start_idx)?;
-        buf.write_value(&self.led_count)?;
+        buf.write_value(self.seg_type)?;
+        buf.write_value(self.start_idx)?;
+        buf.write_value(self.led_count)?;
         Ok(())
     }
 }

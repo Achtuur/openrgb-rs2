@@ -1,11 +1,11 @@
 use std::io::Write;
 
-use crate::OpenRgbResult;
 #[cfg(test)]
 use crate::ReceivedMessage;
+use crate::{OpenRgbResult, log_serde};
 
 /// Serialize an object to a byte buffer.
-pub(crate) trait SerToBuf {
+pub(crate) trait SerToBuf: std::fmt::Debug {
     fn serialize(&self, buf: &mut WriteMessage) -> OpenRgbResult<()>;
 }
 
@@ -15,6 +15,7 @@ impl<T: SerToBuf> SerToBuf for &T {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct WriteMessage {
     protocol_version: u32,
     buf: Vec<u8>,
@@ -57,26 +58,32 @@ impl WriteMessage {
     }
 
     pub fn write_u8(&mut self, value: u8) {
+        log_serde!("Writing {:?}", std::any::type_name::<u8>());
         self.buf.push(value);
     }
 
     pub fn write_u16(&mut self, value: u16) {
+        log_serde!("Writing {:?}", std::any::type_name::<u16>());
         let _ = self.write(&value.to_le_bytes());
     }
 
     pub fn write_u32(&mut self, value: u32) {
+        log_serde!("Writing {:?}", std::any::type_name::<u32>());
         let _ = self.write(&value.to_le_bytes());
     }
 
-    pub fn write_value<T: SerToBuf>(&mut self, value: &T) -> OpenRgbResult<()> {
+    pub fn write_value<T: SerToBuf>(&mut self, value: T) -> OpenRgbResult<()> {
+        log_serde!("Writing {:?}", std::any::type_name::<T>());
         value.serialize(self)
     }
 
     pub fn write_slice(&mut self, slice: &[u8]) {
+        log_serde!("Writing {:?}", std::any::type_name::<&[u8]>());
         self.buf.extend_from_slice(slice);
     }
 
-    pub fn push_value<T: SerToBuf>(&mut self, value: &T) -> OpenRgbResult<&mut Self> {
+    pub fn push_value<T: SerToBuf>(&mut self, value: T) -> OpenRgbResult<&mut Self> {
+        log_serde!("Writing {:?}", std::any::type_name::<T>());
         self.write_value(value)?;
         Ok(self)
     }
