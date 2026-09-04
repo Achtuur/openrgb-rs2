@@ -24,4 +24,4 @@ jobs:
             cargo-
 
       - name: Build
-        run: cargo build --verbose
+        run: cargo build --all-targets --verbose

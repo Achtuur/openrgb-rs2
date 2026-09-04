@@ -15,6 +15,7 @@ impl<T: SerToBuf> SerToBuf for &T {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct WriteMessage {
     protocol_version: u32,
     buf: Vec<u8>,

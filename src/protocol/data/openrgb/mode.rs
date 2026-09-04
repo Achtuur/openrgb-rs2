@@ -514,6 +514,7 @@ mod tests {
     }
 
     #[test]
+    #[tracing_test::traced_test]
     fn test_write_001() -> Result<(), Box<dyn Error>> {
         let mode = ModeData {
             id: u32::MAX,
@@ -544,10 +545,22 @@ mod tests {
             ],
         };
 
-        let mut buf = WriteMessage::new(crate::DEFAULT_PROTOCOL);
+        // `value` field should be set here
+        let mut buf = WriteMessage::new(5);
         buf.write_value(&mode)?;
         let mut msg = buf.to_received_msg();
-        assert_eq!(mode, msg.read_value::<ModeData>()?);
+        pretty_assertions::assert_eq!(mode, msg.read_value::<ModeData>()?);
+
+        // `value` field should not be set here
+        let mut buf6 = WriteMessage::new(6);
+        buf6.write_value(&mode)?;
+        let mut msg6 = buf6.to_received_msg();
+        let mut data = msg6.read_value::<ModeData>()?;
+        assert!(data.value.is_none());
+
+        // to make the assertion work
+        data.value = mode.value;
+        pretty_assertions::assert_eq!(mode, data);
         Ok(())
     }
 }

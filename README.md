@@ -1,4 +1,4 @@
-openrgb-rs2 [![crates.io](https://img.shields.io/crates/v/openrgb.svg)](https://crates.io/crates/openrgb)
+openrgb-rs2 [![crates.io](https://img.shields.io/crates/v/openrgb2.svg)](https://crates.io/crates/openrgb2)
 [![tests](https://github.com/Achtuur/openrgb-rs2/actions/workflows/tests.yml/badge.svg)](https://github.com/Achtuur/openrgb-rs2/actions/workflows/tests.yml)
 ==========
 

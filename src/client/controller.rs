@@ -268,12 +268,12 @@ impl Controller {
     /// // let's say we have a controller with 5 LEDs
     /// # async fn example() -> OpenRgbResult<()> {
     /// let mut client = OpenRgbClient::connect().await?;
-    /// let controller = client.get_controller(0).await?;
+    /// let controller = client.get_all_controllers().await?.into_first()?;
     /// // equivalent with command
     /// let mut cmd = controller.cmd_with_leds(|led| {
     ///     // invert red and blue channels
     ///     Color::new(led.color().b, led.color().g, led.color().r)
-    /// })
+    /// });
     /// // make the first led red
     /// cmd.set_led(0, Color::new(255, 0, 0))?;
     /// // this is just a single api call
