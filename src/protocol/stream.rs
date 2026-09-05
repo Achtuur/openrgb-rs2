@@ -1,6 +1,6 @@
 use std::{pin::Pin, time::Duration};
 
-use crate::{Acknowledge, protocol::PacketId};
+use crate::{Acknowledge, OpenRgbError::ProtocolError, protocol::PacketId};
 use crate::{DeserFromBuf, OpenRgbError, OpenRgbResult, ReceivedMessage, SerToBuf, WriteMessage};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
@@ -164,14 +164,6 @@ impl ProtocolStream {
         packet_id: PacketId,
         data: I,
     ) -> OpenRgbResult<O> {
-        /*
-           1. write only -> automatically receive ACK (write/readACK) -> write
-           2. write->read and receive ack (write/readT/readACK) -> request
-
-           Both cases need to check a server only message before hand.
-           Assumption is that server-only messages are not sent in between a write->read
-        */
-
         self.write_packet(device_id, packet_id, data).await?;
         let read = self.read_packet(device_id, packet_id).await?;
         self.recv_ack(device_id, packet_id).await?;
@@ -190,6 +182,44 @@ impl ProtocolStream {
         Ok(())
     }
 
+    pub async fn write_multiple<I: SerToBuf>(
+        &mut self,
+        packets: impl IntoIterator<Item = (u32, PacketId, I)>,
+    ) -> OpenRgbResult<()> {
+        let mut ids = Vec::new();
+        for (device_id, packet_id, d) in packets {
+            self.write_packet(device_id, packet_id, d).await?;
+            ids.push((device_id, packet_id))
+        }
+
+        while !ids.is_empty() {
+            let packet = self.recv_packet().await?;
+
+            if packet.header.packet_id.is_server_only() {
+                continue;
+            }
+
+            if packet.header.packet_id != PacketId::Acknowledge {
+                return Err(ProtocolError(format!(
+                    "Expected acknowledge but received {}",
+                    packet.header.packet_id
+                )));
+            }
+
+            if !ids.iter().any(|(d_id, _)| *d_id == packet.header.device_id) {
+                return Err(ProtocolError(format!(
+                    "Received packet has invalid device id, received {} but expected one of {:?}",
+                    packet.header.device_id, ids
+                )));
+            }
+
+            ids.retain(|(d_id, _)| *d_id != packet.header.device_id);
+            // todo: check ack status
+        }
+        Ok(())
+    }
+
+    #[allow(unused, reason = "might be used later")]
     async fn recv_ack(&mut self, device_id: u32, packet_id: PacketId) -> OpenRgbResult<()> {
         if self.protocol_version < 6 {
             return Ok(()); // only applies to protocol version 6 and up

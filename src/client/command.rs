@@ -62,9 +62,12 @@ impl<'a> CommandGroup<'a> {
 
     /// Executes all commands in this group one after another.
     pub async fn execute(self) -> OpenRgbResult<()> {
-        for cmd in self.commands.into_values() {
-            cmd.execute().await?;
-        }
+        let colors = self
+            .commands
+            .iter()
+            .map(|(c_id, cmd)| (*c_id as u32, cmd.colors.as_slice()));
+
+        self.group.set_all_colors(colors).await?;
         Ok(())
     }
 

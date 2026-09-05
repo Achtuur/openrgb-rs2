@@ -255,6 +255,19 @@ impl OpenRgbProtocol {
         .await
     }
 
+    /// Updates colors for multiple controllers. This batches all the writes and acknowledge receives, meaning you only wait for the slowest acknowledge.
+    pub async fn update_multiple_controllers(
+        &self,
+        updates: impl IntoIterator<Item = (u32, &[Color])>,
+    ) -> OpenRgbResult<()> {
+        let packets = updates.into_iter().map(|(dev_id, colors)| {
+            let packet = OpenRgbWritePacket::new(colors);
+            (dev_id, PacketId::RGBControllerUpdateLeds, packet)
+        });
+        let mut stream = self.stream.lock().await;
+        stream.write_multiple(packets).await
+    }
+
     /// Update a mode. This sets it to the current mode.
     ///
     /// See [Open SDK documentation](https://gitlab.com/CalcProgrammer1/OpenRGB/-/wikis/OpenRGB-SDK-Documentation#net_packet_id_rgbcontroller_updatemode) for more information.

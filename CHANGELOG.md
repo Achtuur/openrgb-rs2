@@ -13,6 +13,13 @@ One caveat is that this project is still young, so some smaller breaking changes
   ### Security
  -->
 
+## [0.4.1]
+
+### Changed
+
+- Improved performance of `CommandGroup::execute()`.
+
+
 ## [0.4.0] - Update to SDK version 6
 
 ### Added
