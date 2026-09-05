@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    Controller, OpenRgbError, OpenRgbResult, client::command::CommandGroup, data::DeviceType,
+    Color, Controller, OpenRgbError, OpenRgbResult, client::command::CommandGroup, data::DeviceType,
 };
 
 /// Trait for things that can index into a `ControllerGroup`.
@@ -164,6 +164,19 @@ impl ControllerGroup {
         for controller in &self.controllers {
             controller.turn_off_leds().await?;
         }
+        Ok(())
+    }
+
+    pub(crate) async fn set_all_colors<'a>(
+        &self,
+        colors_per_controller: impl IntoIterator<Item = (u32, &'a [Color])>,
+    ) -> OpenRgbResult<()> {
+        let Some(protocol) = self.controllers.first().map(|c| c.proto()) else {
+            return Ok(()); // nothing to update
+        };
+        protocol
+            .update_multiple_controllers(colors_per_controller)
+            .await?;
         Ok(())
     }
 }
